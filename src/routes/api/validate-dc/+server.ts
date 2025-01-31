@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
         return json({ error: 'Failed to obtain Zoho auth token' }, { status: 500 });
     }
 
-    const zohoResponse = await fetch(`https://books.zoho.in/api/v3/deliverychallans?organization_id=${organizationId}&deliverychallan_number=${encodeURIComponent(dcNumber)}`, {
+    const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/deliverychallans?organization_id=${ORGANIZATION_ID}&deliverychallan_number=${encodeURIComponent(dcNumber)}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
             'organization_id': organizationId,
