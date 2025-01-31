@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
     }
 
     
-    const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/deliverychallans?organization_id=${ORGANIZATION_ID}&deliverychallan_number=${dcNumber}`, {
+    const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/deliverychallans?organization_id=60005679410&deliverychallan_number=${dcNumber}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
             'organization_id': organizationId,
