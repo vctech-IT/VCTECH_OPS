@@ -17,6 +17,7 @@ interface TokenResponse {
     expires_in: number;
 }
 
+
 async function refreshToken(): Promise<void> {
     const response = await fetch('https://accounts.zoho.in/oauth/v2/token', {
         method: 'POST',
@@ -36,6 +37,8 @@ async function refreshToken(): Promise<void> {
     authToken = data.access_token;
     tokenExpiry = Date.now() + (data.expires_in * 1000);
 }
+
+console.log(authToken);
 
 interface DeliveryChallan {
     challan_number: string;
