@@ -38,7 +38,7 @@ async function refreshToken(): Promise<void> {
     tokenExpiry = Date.now() + (data.expires_in * 1000);
 }
 
-console.log(authToken);
+
 
 interface DeliveryChallan {
     challan_number: string;
@@ -51,7 +51,7 @@ interface DeliveryChallan {
 }
 
 async function fetchDeliveryChallans(token: string): Promise<DeliveryChallan[]> {
-    const response = await fetch(`https://books.zoho.in/api/v3/deliverychallans?organization_id=${ORGANIZATION_ID}`, {
+    const response = await fetch(`https://www.zohoapis.in/books/v3/deliverychallans?organization_id=${ORGANIZATION_ID}`, {
         method: 'GET',
         headers: {
             'Authorization': `Zoho-oauthtoken ${token}`
