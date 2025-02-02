@@ -60,6 +60,7 @@
 		"@skeletonlabs/skeleton": "^2.10.2",
 		"@svelteuidev/core": "^0.15.7",
 		"@vercel/analytics": "^1.4.1",
+		"@vercel/speed-insights": "^1.1.0",
 		"@zerodevx/svelte-toast": "^0.9.5",
 		"apexcharts": "^3.52.0",
 		"bcrypt": "^5.1.1",
