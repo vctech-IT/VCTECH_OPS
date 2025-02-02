@@ -3578,7 +3578,6 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(item.amount)}</td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <select bind:value={lineItemsWithStatus[index].status} 
-                        on:change={() => handleStatusChange(index, lineItemsWithStatus[index].status)}
                         class="w-max px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" disabled={frozenLineItems[item.Itemid] || !isEditing} >
                           <option value="">Select status</option>
                           <option value="available">Available</option>
@@ -3593,20 +3592,6 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
               </table>
             </div>
           </div>
-          {#if lineItemsWithStatus.length > 0}
-    <button 
-        class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-        on:click={() => {
-            localStorage.removeItem(STORAGE_KEY);
-            lineItemsWithStatus = lineItemsWithStatus.map(item => ({
-                ...item,
-                status: ''
-            }));
-        }}
-    >
-        Reset All Statuses
-    </button>
-{/if}
           <!-- New reactive statement to check if all items are Not Available or Not Required -->
   
        <!-- Partial Delivery toggle -->
