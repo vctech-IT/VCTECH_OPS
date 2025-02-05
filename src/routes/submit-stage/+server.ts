@@ -12,7 +12,7 @@ const prisma = new PrismaClient({
   export async function POST({ request }) {
     const { stage, data } = await request.json();
 
-    console.log("Data inside push:", JSON.stringify(data, null, 2));
+    // console.log("Data inside push:", JSON.stringify(data, null, 2));
     try {
       let result;
       switch (stage) {
@@ -26,7 +26,9 @@ const prisma = new PrismaClient({
           break;
         case 1:
           // console.log("Line Items:", JSON.stringify(data.lineItems, null, 2));
-          // console.log("DC Boxes:", JSON.stringify(data.dcBoxes, null, 2));
+          // console.log("DC Boxesss:", JSON.stringify(data.dcBoxes, null, 2));
+          // console.log("Partial Deliveryyyy:", JSON.stringify(data.partialDelivery, null, 2));
+
           const existingLineItems = await prisma.lineItems.findFirst({
             where: { SONumber: data.lineItems[0].SONumber }
           });
@@ -59,6 +61,7 @@ const prisma = new PrismaClient({
               SONumber: data.dcBoxes.SONumber,
               DCNumber: data.dcBoxes.DCNumber,
               status: data.dcBoxes.status,
+              partialDelivery: data.partialDelivery,
               PODNo: data.dcBoxes.PODNo,
               DispatchDate: new Date(data.dcBoxes.DispatchDate).toISOString(),
               EstdDeliveryDate: new Date(data.dcBoxes.EstdDeliveryDate).toISOString(),
@@ -102,14 +105,66 @@ const prisma = new PrismaClient({
         case 3:
           console.log("Data received in case 3:");
           console.log(JSON.stringify(data, null, 2));
-          if (data.Ticketid==''){
-            result = await prisma.installation.create({
-              data: { SONumber: data.SONumber,engName:data.engName,ScheduleDate:new Date(data.ScheduleDate).toISOString(),MobNo:data.MobNo,VendorName:data.VendorName,InstallationRem:data.Remark,InstReport:data.Report ,activeTab: data.activeTab, InstReportName:data.ReportName,InstPreviewUrl:data.PreviewUrl}
+
+          const existingInstallation = await prisma.installation.findUnique({
+            where: { SONumber: data.SONumber }
           });
+      
+          const existingService = await prisma.service.findUnique({
+            where: { SONumber: data.SONumber }
+          });
+
+          if (data.Ticketid==''){
+            if (existingInstallation) {
+              result = await prisma.installation.update({
+                where: { SONumber: data.SONumber },
+                data: {
+                  InstReport: data.Report,
+                  InstReportName: data.ReportName,
+                }
+              });
+            } else {
+              result = await prisma.installation.create({
+                data: {
+                  SONumber: data.SONumber,
+                  engName: data.engName,
+                  ScheduleDate: new Date(data.ScheduleDate).toISOString(),
+                  MobNo: data.MobNo,
+                  VendorName: data.VendorName,
+                  InstallationRem: data.Remark,
+                  InstReport: data.Report,
+                  activeTab: data.activeTab,
+                  InstReportName: data.ReportName,
+                  InstPreviewUrl: data.PreviewUrl
+                }
+              });
+            }
           }else if(data.Ticketid){
-            result = await prisma.service.create({
-              data: { SONumber: data.SONumber,engName:data.engName,ScheduleDate:new Date(data.ScheduleDate).toISOString(),MobNo:data.MobNo,VendorName:data.VendorName,ServiceRem:data.Remark,ServiceReport:data.Report, Serticketid: data.Ticketid ,activeTab: data.activeTab,ServiceReportName:data.ReportName,ServicePreviewUrl:data.PreviewUrl}
-            });
+            if (existingService) {
+              result = await prisma.service.update({
+                where: { SONumber: data.SONumber },
+                data: {
+                  ServiceReport: data.Report,
+                  ServiceReportName: data.ReportName,
+                }
+              });
+            } else {
+              result = await prisma.service.create({
+                data: {
+                  SONumber: data.SONumber,
+                  engName: data.engName,
+                  ScheduleDate: new Date(data.ScheduleDate).toISOString(),
+                  MobNo: data.MobNo,
+                  VendorName: data.VendorName,
+                  ServiceRem: data.Remark,
+                  ServiceReport: data.Report,
+                  Serticketid: data.Ticketid,
+                  activeTab: data.activeTab,
+                  ServiceReportName: data.ReportName,
+                  ServicePreviewUrl: data.PreviewUrl
+                }
+              });
+            }
           }
           if (data.ReturnPickupName){
             result = await prisma.stage4.create({
@@ -130,7 +185,7 @@ const prisma = new PrismaClient({
                 where: {
                     SONumber: data.SONumber,
                 },
-                data: {
+                data: { 
                   DCNumber: data.DCNumber,
                   CourierTrackNo: data.CourierTrackNo,
                   DCAmount: data.DCAmount,
@@ -141,9 +196,9 @@ const prisma = new PrismaClient({
                   fileName: data.fileName
                 },
             });
-            console.log(`Record with SONumber ${data.SONumber} updated successfully.`);
+            console.log(Record with SONumber ${data.SONumber} updated successfully.);
           } else {
-            console.log(`No record found in stage4 with SONumber ${data.SONumber}. Update skipped.`);
+            console.log(No record found in stage4 with SONumber ${data.SONumber}. Update skipped.);
           }
           break;
 
@@ -178,7 +233,3 @@ const prisma = new PrismaClient({
 function currentDate(): any {
   throw new Error('Function not implemented.');
 }
-
-
-
-
