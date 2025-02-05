@@ -1258,7 +1258,7 @@ function handleEdit(index: number) {
 }
 
 let isSaveDisabled = false; 
-  async function handleSave() {
+async function handleSave() {
     try{
     loading.show('Saving DC...');
     const currentDCIndex = dcBoxes.length - 1;
@@ -1280,7 +1280,7 @@ let isSaveDisabled = false;
     // Clear notifications
     showLogisticsAlert = false;
     newlyAvailableItems = [];
-    userEnabledPartialDelivery = false;
+    // userEnabledPartialDelivery = false;
 
 
     // If all items are Not Available, handle it differently
@@ -1310,21 +1310,23 @@ let isSaveDisabled = false;
     lastSavedTimes[currentStage] = getCurrentDateTime();
 
     // Set the DC amount to the current total before saving if it's not already saved
-    if (!currentDC.isSaved) {
+    if (currentDC.isSaved) {
         currentDC.dcAmount = dcOrderTotal.subtotal;
     }
+    
   //    if (currentDC.isSaved) {
   //   // Generate and download PDF after saving
   //   generateAndDownloadPDF(currentDC);
   // }
     try {
-      await fetch(`/submit-stage`, {
+      await fetch(`/submit-stage`, { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stage: currentStage, 
         data: {
         lineItems: lineItemsWithStatus,
-        dcBoxes: currentDC
+        dcBoxes: currentDC,
+        partialDelivery: userEnabledPartialDelivery
       } })});
     }catch (error) {
       console.error('Error:', error);
@@ -1360,7 +1362,7 @@ let isSaveDisabled = false;
   
     if (partialDelivery && userEnabledPartialDelivery) {
     const remainingUnsavedItems = lineItemsWithStatus.filter(item => 
-      !frozenLineItems[item.id] && 
+      !frozenLineItems[item.Itemid] && 
       (item.status === 'available' || item.status === 'need_to_purchase')
     );
 
@@ -1419,24 +1421,24 @@ let isSaveDisabled = false;
 }
 
 // Add a new function to handle save after editing
-function handleSaveEdit(index: number) {
-  const editedDC = dcBoxes[index];
+// function handleSaveEdit(index: number) {
+//   const editedDC = dcBoxes[index];
 
-  if (!canSaveDC(editedDC)) {
-    alert('Please fill all required fields before saving.');
-    return;
-  }
+//   if (!canSaveDC(editedDC)) {
+//     alert('Please fill all required fields before saving.');
+//     return;
+//   }
 
-  editedDC.isSaved = true;
-  editedDC.isEditing = false;
-  dcBoxes = [...dcBoxes]; // Trigger reactivity
+//   editedDC.isSaved = true;
+//   editedDC.isEditing = false;
+//   dcBoxes = [...dcBoxes]; // Trigger reactivity
 
-  updateDCAmount(index);
-  updateTotalSavedDCAmount();
-  saveCurrentState();
+//   updateDCAmount(index);
+//   updateTotalSavedDCAmount();
+//   saveCurrentState();
 
-  alert('DC order updated successfully.');
-}
+//   alert('DC order updated successfully.');
+// }
 
 async function handleSaveAllNotAvailable() {
   try{
@@ -1735,9 +1737,8 @@ function generateAndDownloadPDF(dc: DCBox) {
   try {
     const doc = new jsPDF();
 
-    // Add the Noto Sans font to the PDF
-    doc.addFont(NotoSansRegular, 'NotoSans', 'normal');
-    doc.setFont('NotoSans');
+    // ✅ Use the default Helvetica font instead of Noto Sans
+    doc.setFont('helvetica');
 
     // Header
     doc.setFontSize(16);
@@ -1761,27 +1762,31 @@ function generateAndDownloadPDF(dc: DCBox) {
       doc.setFontSize(12);
       doc.text(`${label}:`, 20, y);
       doc.setFontSize(11);
-      doc.text(value, 70, y);
+      doc.text(value || '-', 70, y);
     }
 
-    addDetail(`${dc.billType} Number`, dc.customName, 0);
-    addDetail('POD Number', dc.trackingNo, 1);
-    addDetail('Dispatched Date', dc.dispatchedDate, 2);
-    addDetail('Delivery Date', dc.deliveryDate, 3);
+    addDetail(`${dc.billType} Number`, dc.DCNumber, 0);
+    addDetail('POD Number', dc.PODNo, 1);
+    addDetail('Dispatched Date', dc.DispatchDate, 2);
+    addDetail('Delivery Date', dc.EstdDeliveryDate, 3);
     addDetail(`${dc.billType} Amount`, formatCurrencyForPDF(dc.dcAmount), 4);
 
     // Line items table
-    const tableData = dc.lineItemIndices.map((itemIndex, i) => {
-      const item = lineItemsWithStatus[itemIndex];
+    const tableData = (dc.lineItemIndices || []).map((itemIndex, i) => {
+      const item = lineItemsWithStatus[itemIndex] || {};
       return [
         (i + 1).toString(),
-        item.name,
-        `${item.quantity} ${item.unit}`,
-        formatCurrencyForPDF(item.rate),
-        formatCurrencyForPDF(item.item_total),
+        item.name || '-',
+        `${item.quantity || 0} ${item.unit || ''}`,
+        formatCurrencyForPDF(item.rate || 0),
+        formatCurrencyForPDF(item.amount || 0),
         item.status === 'need_to_purchase' ? 'Need to purchase locally' : 'Available'
       ];
     });
+
+    if (tableData.length === 0) {
+      console.warn('Warning: No data available for the table.');
+    }
 
     (doc as any).autoTable({
       startY: detailsStart + (5 * detailsGap) + 10,
@@ -1789,7 +1794,7 @@ function generateAndDownloadPDF(dc: DCBox) {
       body: tableData,
       headStyles: { fillColor: [52, 152, 219], textColor: 255 },
       alternateRowStyles: { fillColor: [242, 242, 242] },
-      styles: { font: 'NotoSans', fontSize: 10 },
+      styles: { font: 'helvetica', fontSize: 10 }, // ✅ Use Helvetica
       columnStyles: {
         0: { cellWidth: 10 },
         1: { cellWidth: 'auto' },
@@ -1801,13 +1806,14 @@ function generateAndDownloadPDF(dc: DCBox) {
     });
 
     // Save the PDF
-    doc.save(`${dc.billType}_${dc.customName}.pdf`);
+    doc.save(`${dc.billType}_${dc.DCNumber || 'Unknown'}.pdf`);
     console.log('PDF generated successfully');
   } catch (error) {
     console.error('Error generating PDF:', error);
     alert('An error occurred while generating the PDF. Please try again.');
   }
 }
+
 
 // Function to handle partial delivery toggle
 function togglePartialDelivery() {
@@ -3146,7 +3152,7 @@ async function fetchPreviousStagesData() {
 
     if (result.success) {
       const { stage0Fetched, stage1Fetched, stage3Fetched } = fillPreviousStagesData(result.previousStagesData);
-      console.log("fucking fetch---", Stage3Data);
+      console.log("Please fetch---", Stage3Data);
       
     }
   }catch (error) {
@@ -3192,6 +3198,8 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         DispatchDate : new Date(box.DispatchDate).toISOString().split('T')[0],
         EstdDeliveryDate : new Date(box.EstdDeliveryDate).toISOString().split('T')[0],
       }));
+      userEnabledPartialDelivery=data.stage1.dcBoxes[0].partialDelivery
+      
     }
     stage1Fetched = true;
   }
@@ -3595,7 +3603,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
           <!-- New reactive statement to check if all items are Not Available or Not Required -->
   
        <!-- Partial Delivery toggle -->
- {#if anyItemNotAvailable}
+ {#if anyItemNotAvailable && lineItemsWithStatus.length>1}
   <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
     <label class="inline-flex items-center cursor-pointer">
       <input 
@@ -3749,6 +3757,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
   </div>
         
   <div class="flex justify-end">
+    {#if currentStage<2}
         <button
         class="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 ease-in-out transform hover:scale-105"
         on:click={() => validateDC(index)}
@@ -3757,6 +3766,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         > 
          Validate
         </button>
+        {/if}
       </div>
                 </div>
               </div>
@@ -4021,8 +4031,8 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
       Save
     </button>
     {/if}
-    {#if (partialDelivery && userEnabledPartialDelivery && anyItemNotAvailable) || 
-         (!dcBoxes[dcBoxes.length - 1].isSaved && canAddMoreDC)}
+    {#if ((userEnabledPartialDelivery || anyItemNotAvailable) || 
+         (!dcBoxes[dcBoxes.length - 1].isSaved && canAddMoreDC)) && currentStage<2 && lineItemsWithStatus.length>1}
         <button 
           type="button" 
           on:click={addMoreDC} 
@@ -4030,7 +4040,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         >
           Add More +
         </button>
-      {/if}
+      {/if} 
   </div>
   </div>
   {:else if anyItemNotAvailable}
@@ -4329,7 +4339,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
               </div>
             {/each}
             {/if}
-            {#if !shipment.isSaved && shipment.isEditing || isEditing}
+            {#if (!shipment.isSaved || shipment.isEditing)}
             <textarea
               id="installation-remarks-{index}" 
               bind:value={shipment.currentRemark} 
@@ -4478,7 +4488,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
               </div>
               {/each}
               {/if}
-              {#if !shipment.isSaved && shipment.isEditing || isEditing}
+              {#if !shipment.isSaved || shipment.isEditing}
             <textarea 
               id="service-remarks-{index}" 
               bind:value={shipment.currentRemark} 
