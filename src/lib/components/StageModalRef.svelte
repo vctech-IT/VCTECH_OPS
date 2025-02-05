@@ -4320,7 +4320,6 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                   type="tel" 
                   id="mobile-number-{index}" 
                   bind:value={Stage3Data.MobNo} 
-                  on:input={handleMobileInput}
                   class="mt-2 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" 
                   pattern="[0-9]{10}"
                   maxlength="10"
