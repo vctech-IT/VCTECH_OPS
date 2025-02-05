@@ -196,9 +196,9 @@ const prisma = new PrismaClient({
                   fileName: data.fileName
                 },
             });
-            console.log(Record with SONumber ${data.SONumber} updated successfully.);
+            console.log(`Record with SONumber ${data.SONumber} updated successfully.`);
           } else {
-            console.log(No record found in stage4 with SONumber ${data.SONumber}. Update skipped.);
+            console.log(`No record found in stage4 with SONumber ${data.SONumber}. Update skipped.`);
           }
           break;
 
@@ -218,7 +218,8 @@ const prisma = new PrismaClient({
               isDataSaved2: data.isDataSaved2,
               isEditing2: data.isEditing2
             },
-        });
+          });
+          break;
         default:
           return json({ success: false, message: 'Invalid stage' }, { status: 400 });
       }
