@@ -158,6 +158,12 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
     completed: false, 
     visible: true,
     editableRoles: ['ADMIN', 'MANAGER', 'ACCOUNTANT']
+  },
+  { 
+    title: 'Stage 6. Completion', 
+    completed: true, 
+    visible: true ,
+    editableRoles: ['ADMIN', 'MANAGER', 'ACCOUNTANT']
   }
 ];
 
@@ -5521,7 +5527,49 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     </div>
     </div>
   {/if}
-{/if}
+{:else if moveStage === stageData.findIndex(stage => stage.title === "Stage 6. Completion")}
+  <div class="container mx-auto px-4 py-8">
+    <div class="bg-white shadow-lg rounded-lg p-8 text-center">
+      <div class="flex justify-center mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+        </svg>
+      </div>
+      
+      <h2 class="text-3xl font-bold text-gray-800 mb-4">Order Completed</h2>
+      
+      {#if Stage0Data}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="bg-gray-100 p-4 rounded-lg">
+            <h3 class="font-semibold text-gray-700 mb-2">Sales Order Details</h3>
+            <p><strong>SO Number:</strong> {Stage0Data.SONumber}</p>
+            <p><strong>Client Name:</strong> {Stage0Data.clientName}</p>
+            <p><strong>Total Amount:</strong> ₹{Stage0Data.Total?.toFixed(2)}</p>
+          </div>
+          
+          <div class="bg-gray-100 p-4 rounded-lg">
+            <h3 class="font-semibold text-gray-700 mb-2">Order Summary</h3>
+            <p><strong>Total Line Items:</strong> {lineItemsWithStatus?.length || 0}</p>
+            <p><strong>Completed On:</strong> {new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+      {/if}
+
+      {#if Stage3Data}
+        <div class="bg-gray-100 p-4 rounded-lg mb-6">
+          <h3 class="font-semibold text-gray-700 mb-2">Service/Installation Details</h3>
+          <p><strong>Engineer Name:</strong> {Stage3Data.engName}</p>
+          <p><strong>Schedule Date:</strong> {new Date(Stage3Data.ScheduleDate).toLocaleDateString()}</p>
+          <p><strong>Type:</strong> {Stage3Data.activeTab === 'installation' ? 'Installation' : 'Service'}</p>
+        </div>
+      {/if}
+
+      <div class="mt-6 text-center">
+        <p class="text-gray-600 text-lg">Thank you for completing the order process!</p>
+      </div>
+    </div>
+  </div>
+  {/if}
  
 
         {#if showConfirmationPopup}
