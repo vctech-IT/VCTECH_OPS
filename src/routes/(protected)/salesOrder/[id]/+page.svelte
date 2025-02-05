@@ -110,6 +110,7 @@ function getCurrentStageText(stage: number | undefined): string {
       case 3: return 'Ongoing';
       case 4: return 'Return Pickup';
       case 5: return 'Share With Account';
+      case 6 : return 'Stage Completed';
       default: return 'Update Status';
   }
 }
