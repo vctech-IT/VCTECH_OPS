@@ -74,13 +74,14 @@ model Stage1 {
   SONumber        String   
   dcDetails       DcDetails[]
   DCNumber        String 
+  partialDelivery Boolean
   status          String
   PODNo           String
   DispatchDate    DateTime
   EstdDeliveryDate    DateTime
   dcAmount        Float
   attachment      String?
-  isSaved           Boolean
+  isSaved          Boolean
   fileName          String
   filePreviewUrl    String?
   billType          BillType    
