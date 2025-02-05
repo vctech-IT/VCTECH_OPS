@@ -37,6 +37,7 @@
         { value: '3', label: 'Stage 3' },
         { value: '4', label: 'Stage 4' },
         { value: '5', label: 'Stage 5' },
+        { value: '6', label: 'Completed' },
     ];
 
     function toggleColumnSelector() {
