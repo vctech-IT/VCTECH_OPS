@@ -1,3 +1,4 @@
+// src/routes/submit-stage/+server.ts
 import { json } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
 import { db } from '$lib/database';
@@ -220,6 +221,44 @@ const prisma = new PrismaClient({
             },
           });
           break;
+        
+        case 6: // Completion stage
+          try {
+            // Update the order status to completed
+            await prisma.stage0.update({
+              where: { SONumber: data.SONumber },
+              data: {
+                orderStatus: 'Completed',
+                updatedAt: new Date()
+              }
+            });
+
+            // Log the completion activity
+            await prisma.activityLog.create({
+              data: {
+                salesOrderId: data.SONumber,
+                username: 'System', // You might want to pass the actual username
+                role: 'System',
+                action: 'Order Completed',
+                category: 'Order Lifecycle',
+                details: `Order ${data.SONumber} has been finalized and completed`
+              }
+            });
+
+            // Create a stage history entry
+            await prisma.stageHistory.create({
+              data: {
+                SONumber: data.SONumber,
+                stage: 6 // Completion stage
+              }
+            });
+
+            return json({ success: true, message: 'Order completed successfully' });
+          } catch (error) {
+            console.error('Error completing order:', error);
+            return json({ success: false, message: 'Error completing order' }, { status: 500 });
+          }
+        
         default:
           return json({ success: false, message: 'Invalid stage' }, { status: 400 });
       }
