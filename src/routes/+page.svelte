@@ -599,6 +599,7 @@ onDestroy(() => {
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">Orders by Stage</h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
         {#each ordersByStage.sort(sortStages) as { stage, count }}
+	{#if getStageTitle(stage) != 'Unknown Stage'}
           <KPISTAGECard
             title={`Stage ${stage}`} 
             title2={getStageTitle(stage)}
@@ -607,6 +608,7 @@ onDestroy(() => {
             color={getStageColor(stage)} 
             on:click={handleCardClick}
           />
+	{/if}
         {/each}
       </div>
     </div>
