@@ -5653,12 +5653,6 @@ function isOrderCompleted(stages: any[]): boolean {
         <!-- Footer Message -->
         <div class="text-center">
           <p class="text-gray-600 text-lg mb-6">All tasks have been completed successfully!</p>
-          <button 
-            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-            on:click={() => {/* Add your action here */}}
-          >
-            Back to Dashboard
-          </button>
         </div>
       </div>
     </div>
