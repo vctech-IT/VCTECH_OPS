@@ -5568,48 +5568,121 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     </div>
   {/if}
 {:else if moveStage === stageData.findIndex(stage => stage.title === "Stage 6. Completion")}
-  <div class="container mx-auto px-4 py-8">
-    <div class="bg-white shadow-lg rounded-lg p-8 text-center">
-      <div class="flex justify-center mb-6">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-        </svg>
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="bg-white shadow-2xl rounded-2xl overflow-hidden">
+      <!-- Header Section -->
+      <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-8 text-center">
+        <div class="flex justify-center mb-4">
+          <div class="bg-white rounded-full p-4 shadow-lg">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              class="h-16 w-16 text-green-500 animate-bounce" 
+              viewBox="0 0 20 20" 
+              fill="currentColor"
+            >
+              <path 
+                fill-rule="evenodd" 
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
+                clip-rule="evenodd" 
+              />
+            </svg>
+          </div>
+        </div>
+        <h2 class="text-4xl font-bold text-white mb-2">Order Completed!</h2>
+        <p class="text-green-100 text-lg">The sales order has been successfully processed</p>
       </div>
-      
-      <h2 class="text-3xl font-bold text-gray-800 mb-4">Order Completed</h2>
-      
-      {#if Stage0Data}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div class="bg-gray-100 p-4 rounded-lg">
-            <h3 class="font-semibold text-gray-700 mb-2">Sales Order Details</h3>
-            <p><strong>SO Number:</strong> {Stage0Data.SONumber}</p>
-            <p><strong>Client Name:</strong> {Stage0Data.clientName}</p>
-            <p><strong>Total Amount:</strong> ₹{Stage0Data.Total?.toFixed(2)}</p>
-          </div>
-          
-          <div class="bg-gray-100 p-4 rounded-lg">
-            <h3 class="font-semibold text-gray-700 mb-2">Order Summary</h3>
-            <p><strong>Total Line Items:</strong> {lineItemsWithStatus?.length || 0}</p>
-            <p><strong>Completed On:</strong> {new Date().toLocaleDateString()}</p>
-          </div>
-        </div>
-      {/if}
 
-      {#if Stage3Data}
-        <div class="bg-gray-100 p-4 rounded-lg mb-6">
-          <h3 class="font-semibold text-gray-700 mb-2">Service/Installation Details</h3>
-          <p><strong>Engineer Name:</strong> {Stage3Data.engName}</p>
-          <p><strong>Schedule Date:</strong> {new Date(Stage3Data.ScheduleDate).toLocaleDateString()}</p>
-          <p><strong>Type:</strong> {Stage3Data.activeTab === 'installation' ? 'Installation' : 'Service'}</p>
-        </div>
-      {/if}
+      <!-- Content Section -->
+      <div class="p-8">
+        {#if Stage0Data}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Sales Order Details Card -->
+            <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+              <div class="flex items-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 class="text-xl font-semibold text-gray-800">Sales Order Details</h3>
+              </div>
+              <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">SO Number:</span>
+                  <span class="font-medium text-gray-800">{Stage0Data.SONumber}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">Client Name:</span>
+                  <span class="font-medium text-gray-800">{Stage0Data.clientName}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">Total Amount:</span>
+                  <span class="font-medium text-green-600">₹{Stage0Data.Total?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </div>
 
-      <div class="mt-6 text-center">
-        <p class="text-gray-600 text-lg">Thank you for completing the order process!</p>
+            <!-- Order Summary Card -->
+            <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+              <div class="flex items-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <h3 class="text-xl font-semibold text-gray-800">Order Summary</h3>
+              </div>
+              <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">Total Line Items:</span>
+                  <span class="font-medium text-gray-800">{lineItemsWithStatus?.length || 0}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">Completed On:</span>
+                  <span class="font-medium text-gray-800">{new Date().toLocaleDateString('en-IN', { 
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        {#if Stage3Data}
+          <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300 mb-8">
+            <div class="flex items-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <h3 class="text-xl font-semibold text-gray-800">Service/Installation Details</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="flex justify-between md:block">
+                <span class="text-gray-600">Engineer Name:</span>
+                <span class="font-medium text-gray-800">{Stage3Data.engName}</span>
+              </div>
+              <div class="flex justify-between md:block">
+                <span class="text-gray-600">Schedule Date:</span>
+                <span class="font-medium text-gray-800">{new Date(Stage3Data.ScheduleDate).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}</span>
+              </div>
+              <div class="flex justify-between md:block">
+                <span class="text-gray-600">Type:</span>
+                <span class="font-medium text-gray-800 capitalize">{Stage3Data.activeTab}</span>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Footer Message -->
+        <div class="text-center">
+          <p class="text-gray-600 text-lg mb-6">All tasks have been completed successfully!</p>
+        </div>
       </div>
     </div>
   </div>
-  {/if}
+{/if}
  
 
         {#if showConfirmationPopup}
