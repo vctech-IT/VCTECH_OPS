@@ -1,4 +1,3 @@
-<!--shubham-->
 <script lang="ts">
   // Imports
   import { createEventDispatcher, onMount } from 'svelte';
@@ -164,7 +163,7 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
     title: 'Stage 6. Completion', 
     completed: false, 
     visible: true ,
-    editableRoles: ['ADMIN', 'MANAGER', 'ACCOUNTANT']
+    editableRoles: ['ADMIN', 'MANAGER']
   }
 ];
 
@@ -389,7 +388,7 @@ if ( currentStage === 1) {
     retaccRemark:'',
     isDataSaved1: false,
     isEditing1: true,
-    isDataSaved2: false,
+    isDataSaved2: false, 
     isEditing2: true
   }
 }
@@ -992,6 +991,7 @@ async function handleSubmit(event: Event) {
       }
       break;
     case 3:
+      if (!Stage5Data.rejected1){
         try {
           await fetch(`/submit-stage`, {
           method: 'POST',
@@ -1006,7 +1006,7 @@ async function handleSubmit(event: Event) {
         text: 'Ongoing stage has completed',
         icon: 'success',
         confirmButtonText: 'OK'
-        });
+        });}
       break;
     case 4:
     if (stageData[4].visible) {
@@ -1027,7 +1027,6 @@ async function handleSubmit(event: Event) {
         confirmButtonText: 'OK'
       });
         stageData[4].completed = true;
-        currentStage = 5; // Move to Share with Account stage
       } else {
         await Swal.fire({
         title: 'Oops...',
@@ -1037,13 +1036,14 @@ async function handleSubmit(event: Event) {
       });
         return;
       }
-    } else {
-      // Handle the case when Return Pickup is not visible (skipped)
-      await Swal.fire("Moving to Share with Account stage.");
-      currentStage = 5;
-    }
+    } 
+    // else {
+    //   // Handle the case when Return Pickup is not visible (skipped)
+    //   // await Swal.fire("Moving to Share with Account stage.");
+    //   // currentStage = 5;
+    // }
     break;
-    case (stageData[4].visible ? 5 : 4):
+    case 5:
     const approvedItems = [Stage5Data]
       .filter(item => item.isSaved && item.accStatus === 'approved')
       .map(item => item.name || `Shipment ${item.index + 1}`);
@@ -1058,6 +1058,7 @@ async function handleSubmit(event: Event) {
       await Swal.fire(`Rejected items: ${rejectedItems.join(', ')}`);
       showRejectionAlert = true;
     }
+    Stage5Data.SONumber=salesOrder.salesorder_number;
     try {
           await fetch(`/submit-stage`, {
           method: 'POST',
@@ -1066,6 +1067,9 @@ async function handleSubmit(event: Event) {
         }
         catch (error) {
           console.error('Error:', error);
+        }
+        if (Stage5Data.rejected1==true){
+          currentStage=moveStage=2; 
         }
     break;
     }
@@ -1099,9 +1103,9 @@ async function handleSubmit(event: Event) {
         });
     } finally {
         loading.hide();
-    }
+    } 
 }
-const resubmitReport = async (index: number) => {
+const resubmitReport = async (index: number) => { 
   try {
     // Show loading indicator
     const loading = Swal.fire({
@@ -1123,9 +1127,9 @@ const resubmitReport = async (index: number) => {
     }
 
     // Reset rejection status
-    Stage5Data.rejected1 = null;
-    Stage5Data.accRemark = "";
-    Stage5Data.accStatus = "";
+    // Stage5Data.rejected1 = null;
+    // Stage5Data.accRemark = "";
+    // Stage5Data.accStatus = "";
 
     // Prepare submission data based on active tab
     const submissionData = {
@@ -1135,7 +1139,13 @@ const resubmitReport = async (index: number) => {
       Ticketid: Stage3Data.Ticketid || '',
       activeTab: Stage3Data.activeTab
     };
-    console.log("submission---",submissionData);
+    const updateData = {
+      SONumber: Stage0Data.SONumber,
+      rejected1:false,
+      accRemark:"",
+      accStatus:"" 
+    };
+    // console.log("submission---",submissionData);
     // Submit the data
     try {
       const response = await fetch(`/submit-stage`, {
@@ -1146,33 +1156,45 @@ const resubmitReport = async (index: number) => {
           data: submissionData 
         })
       });
+      const response2 = await fetch(`/submit-stage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          stage: 5, 
+          data: updateData
+        })
+      })
+
 
       if (!response.ok) {
         throw new Error('Failed to submit data');
       }
+      if(!response2.ok){
+        throw new Error('Failed to update Stage5');
+      }
       
 
       // Show success message
-      await Swal.fire({
+      await Swal.fire({ 
         title: 'Success',
         text: 'Report resubmitted successfully',
         icon: 'success',
         confirmButtonText: 'OK'
       });
-
+      currentStage=moveStage=5;
       // Update current stage if needed
-      // try {
-      //   await fetch('/update-current-stage', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({
-      //       SONumber: Stage0Data.SONumber,
-      //       currentStage: currentStage
-      //     })
-      //   });
-      // } catch (error) {
-      //   console.error('Error updating current stage:', error);
-      // }
+      try {
+        await fetch('/update-current-stage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            SONumber: Stage0Data.SONumber,
+            currentStage: currentStage
+          })
+        });
+      } catch (error) {
+        console.error('Error updating current stage:', error);
+      }
 
     } catch (error) {
       console.error('Error resubmitting report:', error);
@@ -1420,10 +1442,22 @@ async function handleSave() {
     }
 }
 
-  function moveToMaterialToProcureStage() {
-  currentStage = 2; // Move to stage 2 (Material to Procure)
+async function moveToMaterialToProcureStage() {
+  moveStage=currentStage = 2; // Move to stage 2 (Material to Procure)
   // You might want to perform any necessary initialization for stage 2 here
   // For example:
+  try {
+        await fetch('/update-current-stage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                SONumber: Stage0Data.SONumber, // Assuming SONumber is in Stage0Data
+                currentStage: currentStage // Update to the next stage
+            })
+        });
+    } catch (error) {
+        console.error('Error updating current stage:', error);
+    }
   notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available');
 }
 
@@ -2823,7 +2857,7 @@ async function saveReturnPickup() {
   Stage4Data.DCAmount = parseFloat(value.replace(/,/g, ''));
 
   // You can log to verify
-  console.log("DC Amount as float:", Stage4Data.DCAmount);
+  // console.log("DC Amount as float:", Stage4Data.DCAmount);
 }
 
 
@@ -2860,9 +2894,11 @@ function updateDeliveryDateMin() {
 
   // Reactive statements
   $: {
+    if (Stage4Data){
     stageData[4].visible = Stage4Data.returnPickupRequested;
     stageData = stageData; // Trigger reactivity
-  }
+    }
+  } 
 
   $: {
     partialDelivery = lineItemsWithStatus.some(item => item.status === 'not_available');
@@ -3159,7 +3195,7 @@ async function fetchPreviousStagesData() {
 
     if (result.success) {
       const { stage0Fetched, stage1Fetched, stage3Fetched } = fillPreviousStagesData(result.previousStagesData);
-      console.log("Please fetch---", Stage3Data);
+      // console.log("Please fetch---", Stage3Data);
       
     }
   }catch (error) {
@@ -3193,7 +3229,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         needToPurchaseLocally: item.needToPurchaseLocally || false,
         isAvailable: item.isAvailable || false,
       }));
-      console.log("Items func", lineItemsWithStatus);
+      // console.log("Items func", lineItemsWithStatus);
     }
 
     if (data.stage1.dcBoxes && data.stage1.dcBoxes.length > 0) {
@@ -3212,7 +3248,8 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
   }
 
   if (data.stage3) {
-    
+    Stage4Data={};
+    Stage4Data.returnPickupRequested = false;
     if (data.stage3.installation != null) {
       Stage3Data = {}; 
       Stage3Data.SONumber = data.stage3.installation.SONumber;
@@ -3262,6 +3299,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
   stage4Fetched = true;
 
   if(data.stage5){
+    Stage5Data={};
     Stage5Data.accStatus = data.stage5.accStatus;
     Stage5Data.rejected1 = data.stage5.rejected1;
     Stage5Data.accRemark = data.stage5.accRemark;
@@ -3273,18 +3311,9 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     Stage5Data.isDataSaved2 = data.stage5.isDataSaved2;
     Stage5Data.isEditing2 = data.stage5.isEditing2;
   }
-
   return { stage0Fetched, stage1Fetched, stage3Fetched };
 }
-function getActiveStages(stages: any[]): any[] {
-  // Filter only stages 0-5 as they are in the main flow
-  return stages.filter(stage => stage.stage >= 0 && stage.stage <= 5);
-}
 
-// Function to check if order is completed
-function isOrderCompleted(stages: any[]): boolean {
-  return stages.some(stage => stage.stage === 6);
-}
 
 </script>
 
@@ -3332,23 +3361,15 @@ function isOrderCompleted(stages: any[]): boolean {
     </div>
     {/if}    
 
-<!-- Progress bar component -->
-<div class="relative mb-6">
-  <div class="overflow-hidden h-2 text-xs flex rounded bg-blue-100">
-    {#if isOrderCompleted(visibleStages)}
-      <!-- If order is completed (stage 6), show full progress -->
+    <!-- Progress bar -->
+  <div class="relative mb-6">
+    <div class="overflow-hidden h-2 text-xs flex rounded bg-blue-100">
       <div
-        class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500 ease-in-out w-full"
-      ></div>
-    {:else}
-      <!-- Calculate progress based on completed stages 0-5 -->
-      <div
-        style="width: {(getActiveStages(visibleStages).filter(stage => stage.completed).length / 6) * 100}%"
+        style="width: {(visibleStages.filter(stage => stage.completed).length / visibleStages.length) * 100}%"
         class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500 ease-in-out"
       ></div>
-    {/if}
+    </div>
   </div>
-</div>
     
     <!-- Stage navigation -->
     <div class="flex justify-between items-center">
@@ -4337,6 +4358,7 @@ function isOrderCompleted(stages: any[]): boolean {
                   type="tel" 
                   id="mobile-number-{index}" 
                   bind:value={Stage3Data.MobNo} 
+                  on:input={handleMobileInput}
                   class="mt-2 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" 
                   pattern="[0-9]{10}"
                   maxlength="10"
@@ -4360,8 +4382,8 @@ function isOrderCompleted(stages: any[]): boolean {
                 <p class="text-xs text-gray-500 mt-1">Submitted on: {remark.timestamp}</p>
               </div>
             {/each}
-            {/if}
-            {#if (!shipment.isSaved || shipment.isEditing)}
+            {/if} 
+            {#if (!shipment.isSaved || shipment.isEditing) && !Stage5Data.rejected1 && moveStage>=currentStage}
             <textarea
               id="installation-remarks-{index}" 
               bind:value={shipment.currentRemark} 
@@ -4485,6 +4507,7 @@ function isOrderCompleted(stages: any[]): boolean {
                     type="tel" 
                     id="service-mobile-number-{index}" 
                     bind:value={Stage3Data.MobNo} 
+                    on:input={handleMobileInput}
                     class="mt-2 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" 
                     pattern="[0-9]{10}"
                     maxlength="10"
@@ -4509,7 +4532,7 @@ function isOrderCompleted(stages: any[]): boolean {
               </div>
               {/each}
               {/if}
-              {#if !shipment.isSaved || shipment.isEditing}
+              {#if (!shipment.isSaved || shipment.isEditing) && !Stage5Data.rejected1 && moveStage>=currentStage}
             <textarea 
               id="service-remarks-{index}" 
               bind:value={shipment.currentRemark} 
@@ -4617,7 +4640,7 @@ function isOrderCompleted(stages: any[]): boolean {
 
         {#if !shipment.isSaved || shipment.isEditing}
         <div class="relative flex space-x-4 mt-4">
-          {#if moveStage>=currentStage}
+          {#if moveStage>=currentStage && !Stage5Data.rejected1}
           <button 
             type="button" 
             on:click={() => saveShipment(index)}
@@ -4639,7 +4662,7 @@ function isOrderCompleted(stages: any[]): boolean {
     </button>
   </div>
         {/if}
-        {#if shipment.isEditing}
+        {#if shipment.isEditing && !Stage5Data.rejected1}
           <button 
             type="button" 
             on:click={() => cancelEdit(index)}
@@ -4696,7 +4719,7 @@ function isOrderCompleted(stages: any[]): boolean {
 
         
         <!-- Return Pickup toggle button -->
-        {#if moveStage===currentStage}
+        {#if moveStage===currentStage && !Stage5Data.rejected1}
         <button 
           type="button" 
           on:click={() => {
@@ -4803,7 +4826,7 @@ function isOrderCompleted(stages: any[]): boolean {
   </table>
 </div>
 
-           {#if !returnPickupDetailsSaved}
+           {#if !returnPickupDetailsSaved && !Stage5Data.rejected1}
              <button 
                type="button" 
                on:click={saveReturnPickupDetails}
@@ -5346,7 +5369,7 @@ function isOrderCompleted(stages: any[]): boolean {
           Rejected
         </button>
       </div>
-
+      
       <!-- Remark input field -->
       {#if Stage5Data.accStatus}
         <div class="mt-6">
@@ -5365,6 +5388,7 @@ function isOrderCompleted(stages: any[]): boolean {
 
       <!-- Save/Edit button -->
       <div class="mt-6 text-right">
+      {#if currentStage!=6}  
       <button 
         type="button" 
         on:click={() => {
@@ -5385,6 +5409,7 @@ function isOrderCompleted(stages: any[]): boolean {
       >
         {Stage5Data.isDataSaved1 ? 'Edit' : 'Save'}
       </button>
+      {/if}
     </div>
   </div>
   <div id="previewModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="display:none;">
@@ -5543,121 +5568,48 @@ function isOrderCompleted(stages: any[]): boolean {
     </div>
   {/if}
 {:else if moveStage === stageData.findIndex(stage => stage.title === "Stage 6. Completion")}
-  <div class="container mx-auto px-4 py-8 max-w-4xl">
-    <div class="bg-white shadow-2xl rounded-2xl overflow-hidden">
-      <!-- Header Section -->
-      <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-8 text-center">
-        <div class="flex justify-center mb-4">
-          <div class="bg-white rounded-full p-4 shadow-lg">
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              class="h-16 w-16 text-green-500 animate-bounce" 
-              viewBox="0 0 20 20" 
-              fill="currentColor"
-            >
-              <path 
-                fill-rule="evenodd" 
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                clip-rule="evenodd" 
-              />
-            </svg>
-          </div>
-        </div>
-        <h2 class="text-4xl font-bold text-white mb-2">Order Completed!</h2>
-        <p class="text-green-100 text-lg">The sales order has been successfully processed</p>
+  <div class="container mx-auto px-4 py-8">
+    <div class="bg-white shadow-lg rounded-lg p-8 text-center">
+      <div class="flex justify-center mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+        </svg>
       </div>
-
-      <!-- Content Section -->
-      <div class="p-8">
-        {#if Stage0Data}
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <!-- Sales Order Details Card -->
-            <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
-              <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 class="text-xl font-semibold text-gray-800">Sales Order Details</h3>
-              </div>
-              <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">SO Number:</span>
-                  <span class="font-medium text-gray-800">{Stage0Data.SONumber}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Client Name:</span>
-                  <span class="font-medium text-gray-800">{Stage0Data.clientName}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Total Amount:</span>
-                  <span class="font-medium text-green-600">₹{Stage0Data.Total?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Order Summary Card -->
-            <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
-              <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <h3 class="text-xl font-semibold text-gray-800">Order Summary</h3>
-              </div>
-              <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Total Line Items:</span>
-                  <span class="font-medium text-gray-800">{lineItemsWithStatus?.length || 0}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Completed On:</span>
-                  <span class="font-medium text-gray-800">{new Date().toLocaleDateString('en-IN', { 
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}</span>
-                </div>
-              </div>
-            </div>
+      
+      <h2 class="text-3xl font-bold text-gray-800 mb-4">Order Completed</h2>
+      
+      {#if Stage0Data}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="bg-gray-100 p-4 rounded-lg">
+            <h3 class="font-semibold text-gray-700 mb-2">Sales Order Details</h3>
+            <p><strong>SO Number:</strong> {Stage0Data.SONumber}</p>
+            <p><strong>Client Name:</strong> {Stage0Data.clientName}</p>
+            <p><strong>Total Amount:</strong> ₹{Stage0Data.Total?.toFixed(2)}</p>
           </div>
-        {/if}
-
-        {#if Stage3Data}
-          <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300 mb-8">
-            <div class="flex items-center mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <h3 class="text-xl font-semibold text-gray-800">Service/Installation Details</h3>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div class="flex justify-between md:block">
-                <span class="text-gray-600">Engineer Name:</span>
-                <span class="font-medium text-gray-800">{Stage3Data.engName}</span>
-              </div>
-              <div class="flex justify-between md:block">
-                <span class="text-gray-600">Schedule Date:</span>
-                <span class="font-medium text-gray-800">{new Date(Stage3Data.ScheduleDate).toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                })}</span>
-              </div>
-              <div class="flex justify-between md:block">
-                <span class="text-gray-600">Type:</span>
-                <span class="font-medium text-gray-800 capitalize">{Stage3Data.activeTab}</span>
-              </div>
-            </div>
+          
+          <div class="bg-gray-100 p-4 rounded-lg">
+            <h3 class="font-semibold text-gray-700 mb-2">Order Summary</h3>
+            <p><strong>Total Line Items:</strong> {lineItemsWithStatus?.length || 0}</p>
+            <p><strong>Completed On:</strong> {new Date().toLocaleDateString()}</p>
           </div>
-        {/if}
-
-        <!-- Footer Message -->
-        <div class="text-center">
-          <p class="text-gray-600 text-lg mb-6">All tasks have been completed successfully!</p>
         </div>
+      {/if}
+
+      {#if Stage3Data}
+        <div class="bg-gray-100 p-4 rounded-lg mb-6">
+          <h3 class="font-semibold text-gray-700 mb-2">Service/Installation Details</h3>
+          <p><strong>Engineer Name:</strong> {Stage3Data.engName}</p>
+          <p><strong>Schedule Date:</strong> {new Date(Stage3Data.ScheduleDate).toLocaleDateString()}</p>
+          <p><strong>Type:</strong> {Stage3Data.activeTab === 'installation' ? 'Installation' : 'Service'}</p>
+        </div>
+      {/if}
+
+      <div class="mt-6 text-center">
+        <p class="text-gray-600 text-lg">Thank you for completing the order process!</p>
       </div>
     </div>
   </div>
-{/if}
+  {/if}
  
 
         {#if showConfirmationPopup}
@@ -5711,7 +5663,7 @@ function isOrderCompleted(stages: any[]): boolean {
                 Edit
               </button>
             {/if}    -->    
-            {#if moveStage >= currentStage && currentStage < 6}
+            {#if (moveStage >= currentStage) && currentStage!=6 }
             <button 
               type="submit" 
               class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition duration-150 ease-in-out ml-auto"
