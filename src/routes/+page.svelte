@@ -1,4 +1,4 @@
-<!-- dashboard/+page.svelte -->
+a<!-- dashboard/+page.svelte -->
 <script lang="ts">
 import { onMount, onDestroy } from 'svelte';
 import { browser } from '$app/environment';
@@ -494,7 +494,7 @@ function getStageTitle(stage: number): string {
     case 3: return "Ongoing";
     case 4: return "Return Pickup";
     case 5: return "Share With Account";
-    case 6: return "Dropped";
+    case 7: return "Dropped";
     default: return "Unknown Stage";
   }
 }
