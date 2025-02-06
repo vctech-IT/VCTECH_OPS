@@ -1,11 +1,84 @@
-//api/dashboard-data/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/database';
 
+// Define types for better type safety
+type StageSummary = {
+  onTime: number;
+  overdue: number;
+};
+
+type AgingData = {
+  SONumber: string;
+  stage: number;
+  _max: {
+    timestamp: Date;
+  };
+};
+
+type ProcessedAgingData = {
+  summary: Record<number, StageSummary>;
+  details: {
+    SONumber: string;
+    stage: number;
+    ageInHours: number;
+    isOverdue: boolean;
+    lastUpdated: Date;
+  }[];
+};
+
+function processAgingData(agingData: AgingData[], currentDate: Date): ProcessedAgingData {
+  const stageLimits: Record<number, number> = {
+    0: 24 * 60 * 60 * 1000, // 24 hours
+    1: 24 * 60 * 60 * 1000, // 24 hours
+    2: 10 * 24 * 60 * 60 * 1000, // 10 days
+    3: 7 * 24 * 60 * 60 * 1000, // 7 days
+    4: 10 * 24 * 60 * 60 * 1000, // 10 days
+    5: 48 * 60 * 60 * 1000 // 48 hours
+  };
+
+  // Initialize summary with all possible stages
+  const summary: Record<number, StageSummary> = {};
+  Object.keys(stageLimits).forEach(stage => {
+    summary[Number(stage)] = { onTime: 0, overdue: 0 };
+  });
+
+  const details = agingData.map(item => {
+    // Ensure item.stage is within valid range
+    const stage = Number(item.stage);
+    if (!(stage in stageLimits)) {
+      console.warn(`Invalid stage encountered: ${stage}`);
+      return null;
+    }
+
+    const timestamp = new Date(item._max.timestamp);
+    const ageInMs = currentDate.getTime() - timestamp.getTime();
+    const isOverdue = ageInMs > stageLimits[stage];
+
+    // Safely update summary
+    if (summary[stage]) {
+      if (isOverdue) {
+        summary[stage].overdue++;
+      } else {
+        summary[stage].onTime++;
+      }
+    }
+
+    return {
+      SONumber: item.SONumber,
+      stage: stage,
+      ageInHours: Math.round(ageInMs / (60 * 60 * 1000)),
+      isOverdue: isOverdue,
+      lastUpdated: item._max.timestamp
+    };
+  }).filter((item): item is NonNullable<typeof item> => item !== null);
+
+  return { summary, details };
+}
+
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { start, end, orderStatus, pmNameFilter } = await request.json();
+        const { start, end, orderStatus, pmNameFilter } = await request.json();
 
     type DateFilter = {
       createdAt?: {
@@ -202,44 +275,3 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };
-
-function processAgingData(agingData, currentDate) {
-  const stageLimits = {
-    0: 24 * 60 * 60 * 1000, // 24 hours
-    1: 24 * 60 * 60 * 1000, // 24 hours
-    2: 10 * 24 * 60 * 60 * 1000, // 10 days
-    3: 7 * 24 * 60 * 60 * 1000, // 7 days
-    4: 10 * 24 * 60 * 60 * 1000, // 10 days
-    5: 48 * 60 * 60 * 1000 // 48 hours
-  };
-
-  const summary = {
-    0: { onTime: 0, overdue: 0 },
-    1: { onTime: 0, overdue: 0 },
-    2: { onTime: 0, overdue: 0 },
-    3: { onTime: 0, overdue: 0 },
-    4: { onTime: 0, overdue: 0 },
-    5: { onTime: 0, overdue: 0 }
-  };
-
-  const details = agingData.map(item => {
-    const ageInMs = currentDate.getTime() - new Date(item._max.timestamp).getTime();
-    const isOverdue = ageInMs > stageLimits[item.stage];
-
-    if (isOverdue) {
-      summary[item.stage].overdue++;
-    } else {
-      summary[item.stage].onTime++;
-    }
-
-    return {
-      SONumber: item.SONumber,
-      stage: item.stage,
-      ageInHours: Math.round(ageInMs / (60 * 60 * 1000)),
-      isOverdue: isOverdue,
-      lastUpdated: item._max.timestamp
-    };
-  });
-
-  return { summary, details };
-}
