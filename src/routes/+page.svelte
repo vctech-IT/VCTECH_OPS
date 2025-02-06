@@ -921,7 +921,7 @@ onDestroy(() => {
 </style>
 
 <script context="module">
-function getStageColor(stage: number): string {
+function getStageColor(stage) {
   const colors = [
     'bg-gray-500',   // Stage 0
     'bg-blue-600',   // Stage 1
