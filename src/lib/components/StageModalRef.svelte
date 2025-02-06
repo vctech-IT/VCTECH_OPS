@@ -161,7 +161,7 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
   },
   { 
     title: 'Stage 6. Completion', 
-    completed: true, 
+    completed: false, 
     visible: true ,
     editableRoles: ['ADMIN', 'MANAGER', 'ACCOUNTANT']
   }
