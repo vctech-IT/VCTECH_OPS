@@ -252,7 +252,7 @@ const prisma = new PrismaClient({
                 role: 'System',
                 action: 'Order Completed',
                 category: 'Order Lifecycle',
-                details: Order ${data.SONumber} has been finalized and completed
+                details: `Order ${data.SONumber} has been finalized and completed`
               }
             });
 
