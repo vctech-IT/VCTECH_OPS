@@ -1,3 +1,4 @@
+<!--priyanka-->
 <script lang="ts">
   // Imports
   import { createEventDispatcher, onMount } from 'svelte';
@@ -163,7 +164,7 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
     title: 'Stage 6. Completion', 
     completed: false, 
     visible: true ,
-    editableRoles: ['ADMIN', 'MANAGER', 'ACCOUNTANT']
+    editableRoles: ['ADMIN', 'MANAGER']
   }
 ];
 
@@ -388,7 +389,7 @@ if ( currentStage === 1) {
     retaccRemark:'',
     isDataSaved1: false,
     isEditing1: true,
-    isDataSaved2: false,
+    isDataSaved2: false, 
     isEditing2: true
   }
 }
@@ -991,6 +992,7 @@ async function handleSubmit(event: Event) {
       }
       break;
     case 3:
+      if (!Stage5Data.rejected1){
         try {
           await fetch(`/submit-stage`, {
           method: 'POST',
@@ -1005,7 +1007,7 @@ async function handleSubmit(event: Event) {
         text: 'Ongoing stage has completed',
         icon: 'success',
         confirmButtonText: 'OK'
-        });
+        });}
       break;
     case 4:
     if (stageData[4].visible) {
@@ -1026,7 +1028,6 @@ async function handleSubmit(event: Event) {
         confirmButtonText: 'OK'
       });
         stageData[4].completed = true;
-        currentStage = 5; // Move to Share with Account stage
       } else {
         await Swal.fire({
         title: 'Oops...',
@@ -1036,13 +1037,14 @@ async function handleSubmit(event: Event) {
       });
         return;
       }
-    } else {
-      // Handle the case when Return Pickup is not visible (skipped)
-      await Swal.fire("Moving to Share with Account stage.");
-      currentStage = 5;
-    }
+    } 
+    // else {
+    //   // Handle the case when Return Pickup is not visible (skipped)
+    //   // await Swal.fire("Moving to Share with Account stage.");
+    //   // currentStage = 5;
+    // }
     break;
-    case (stageData[4].visible ? 5 : 4):
+    case 5:
     const approvedItems = [Stage5Data]
       .filter(item => item.isSaved && item.accStatus === 'approved')
       .map(item => item.name || `Shipment ${item.index + 1}`);
@@ -1057,6 +1059,7 @@ async function handleSubmit(event: Event) {
       await Swal.fire(`Rejected items: ${rejectedItems.join(', ')}`);
       showRejectionAlert = true;
     }
+    Stage5Data.SONumber=salesOrder.salesorder_number;
     try {
           await fetch(`/submit-stage`, {
           method: 'POST',
@@ -1065,6 +1068,9 @@ async function handleSubmit(event: Event) {
         }
         catch (error) {
           console.error('Error:', error);
+        }
+        if (Stage5Data.rejected1==true){
+          currentStage=moveStage=2; 
         }
     break;
     }
@@ -1098,9 +1104,9 @@ async function handleSubmit(event: Event) {
         });
     } finally {
         loading.hide();
-    }
+    } 
 }
-const resubmitReport = async (index: number) => {
+const resubmitReport = async (index: number) => { 
   try {
     // Show loading indicator
     const loading = Swal.fire({
@@ -1122,9 +1128,9 @@ const resubmitReport = async (index: number) => {
     }
 
     // Reset rejection status
-    Stage5Data.rejected1 = null;
-    Stage5Data.accRemark = "";
-    Stage5Data.accStatus = "";
+    // Stage5Data.rejected1 = null;
+    // Stage5Data.accRemark = "";
+    // Stage5Data.accStatus = "";
 
     // Prepare submission data based on active tab
     const submissionData = {
@@ -1134,7 +1140,13 @@ const resubmitReport = async (index: number) => {
       Ticketid: Stage3Data.Ticketid || '',
       activeTab: Stage3Data.activeTab
     };
-    console.log("submission---",submissionData);
+    const updateData = {
+      SONumber: Stage0Data.SONumber,
+      rejected1:false,
+      accRemark:"",
+      accStatus:"" 
+    };
+    // console.log("submission---",submissionData);
     // Submit the data
     try {
       const response = await fetch(`/submit-stage`, {
@@ -1145,33 +1157,45 @@ const resubmitReport = async (index: number) => {
           data: submissionData 
         })
       });
+      const response2 = await fetch(`/submit-stage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          stage: 5, 
+          data: updateData
+        })
+      })
+
 
       if (!response.ok) {
         throw new Error('Failed to submit data');
       }
+      if(!response2.ok){
+        throw new Error('Failed to update Stage5');
+      }
       
 
       // Show success message
-      await Swal.fire({
+      await Swal.fire({ 
         title: 'Success',
         text: 'Report resubmitted successfully',
         icon: 'success',
         confirmButtonText: 'OK'
       });
-
+      currentStage=moveStage=5;
       // Update current stage if needed
-      // try {
-      //   await fetch('/update-current-stage', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({
-      //       SONumber: Stage0Data.SONumber,
-      //       currentStage: currentStage
-      //     })
-      //   });
-      // } catch (error) {
-      //   console.error('Error updating current stage:', error);
-      // }
+      try {
+        await fetch('/update-current-stage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            SONumber: Stage0Data.SONumber,
+            currentStage: currentStage
+          })
+        });
+      } catch (error) {
+        console.error('Error updating current stage:', error);
+      }
 
     } catch (error) {
       console.error('Error resubmitting report:', error);
@@ -1419,10 +1443,22 @@ async function handleSave() {
     }
 }
 
-  function moveToMaterialToProcureStage() {
-  currentStage = 2; // Move to stage 2 (Material to Procure)
+async function moveToMaterialToProcureStage() {
+  moveStage=currentStage = 2; // Move to stage 2 (Material to Procure)
   // You might want to perform any necessary initialization for stage 2 here
   // For example:
+  try {
+        await fetch('/update-current-stage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                SONumber: Stage0Data.SONumber, // Assuming SONumber is in Stage0Data
+                currentStage: currentStage // Update to the next stage
+            })
+        });
+    } catch (error) {
+        console.error('Error updating current stage:', error);
+    }
   notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available');
 }
 
@@ -2822,7 +2858,7 @@ async function saveReturnPickup() {
   Stage4Data.DCAmount = parseFloat(value.replace(/,/g, ''));
 
   // You can log to verify
-  console.log("DC Amount as float:", Stage4Data.DCAmount);
+  // console.log("DC Amount as float:", Stage4Data.DCAmount);
 }
 
 
@@ -3192,7 +3228,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         needToPurchaseLocally: item.needToPurchaseLocally || false,
         isAvailable: item.isAvailable || false,
       }));
-      console.log("Items func", lineItemsWithStatus);
+      // console.log("Items func", lineItemsWithStatus);
     }
 
     if (data.stage1.dcBoxes && data.stage1.dcBoxes.length > 0) {
@@ -3211,7 +3247,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
   }
 
   if (data.stage3) {
-    
+    Stage4Data={};
     if (data.stage3.installation != null) {
       Stage3Data = {}; 
       Stage3Data.SONumber = data.stage3.installation.SONumber;
@@ -3240,6 +3276,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
       Stage3Data.ReportName=data.stage3.service.ServiceReportName;
     }
     if(data.stage3.stage4Data){
+      Stage4Data={};
       Stage4Data.SONumber = data.stage3.stage4Data.SONumber;
       Stage4Data.returnPickupRequested = data.stage3.stage4Data.returnPickupRequested;
       Stage4Data.ReturnPickupName = data.stage3.stage4Data.ReturnPickupName;
@@ -3261,6 +3298,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
   stage4Fetched = true;
 
   if(data.stage5){
+    Stage5Data={};
     Stage5Data.accStatus = data.stage5.accStatus;
     Stage5Data.rejected1 = data.stage5.rejected1;
     Stage5Data.accRemark = data.stage5.accRemark;
@@ -3272,7 +3310,6 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     Stage5Data.isDataSaved2 = data.stage5.isDataSaved2;
     Stage5Data.isEditing2 = data.stage5.isEditing2;
   }
-
   return { stage0Fetched, stage1Fetched, stage3Fetched };
 }
 
@@ -3323,15 +3360,23 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     </div>
     {/if}    
 
-    <!-- Progress bar -->
-  <div class="relative mb-6">
-    <div class="overflow-hidden h-2 text-xs flex rounded bg-blue-100">
+<!-- Progress bar component -->
+<div class="relative mb-6">
+  <div class="overflow-hidden h-2 text-xs flex rounded bg-blue-100">
+    {#if isOrderCompleted(visibleStages)}
+      <!-- If order is completed (stage 6), show full progress -->
       <div
-        style="width: {(visibleStages.filter(stage => stage.completed).length / visibleStages.length) * 100}%"
+        class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500 ease-in-out w-full"
+      ></div>
+    {:else}
+      <!-- Calculate progress based on completed stages 0-5 -->
+      <div
+        style="width: {(getActiveStages(visibleStages).filter(stage => stage.completed).length / 6) * 100}%"
         class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500 ease-in-out"
       ></div>
-    </div>
+    {/if}
   </div>
+</div>
     
     <!-- Stage navigation -->
     <div class="flex justify-between items-center">
@@ -4320,6 +4365,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                   type="tel" 
                   id="mobile-number-{index}" 
                   bind:value={Stage3Data.MobNo} 
+                  
                   class="mt-2 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" 
                   pattern="[0-9]{10}"
                   maxlength="10"
@@ -4343,8 +4389,8 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                 <p class="text-xs text-gray-500 mt-1">Submitted on: {remark.timestamp}</p>
               </div>
             {/each}
-            {/if}
-            {#if (!shipment.isSaved || shipment.isEditing)}
+            {/if} 
+            {#if (!shipment.isSaved || shipment.isEditing) && !Stage5Data.rejected1 && moveStage>=currentStage}
             <textarea
               id="installation-remarks-{index}" 
               bind:value={shipment.currentRemark} 
@@ -4468,6 +4514,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                     type="tel" 
                     id="service-mobile-number-{index}" 
                     bind:value={Stage3Data.MobNo} 
+                    
                     class="mt-2 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" 
                     pattern="[0-9]{10}"
                     maxlength="10"
@@ -4492,7 +4539,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
               </div>
               {/each}
               {/if}
-              {#if !shipment.isSaved || shipment.isEditing}
+              {#if (!shipment.isSaved || shipment.isEditing) && !Stage5Data.rejected1 && moveStage>=currentStage}
             <textarea 
               id="service-remarks-{index}" 
               bind:value={shipment.currentRemark} 
@@ -4600,7 +4647,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
 
         {#if !shipment.isSaved || shipment.isEditing}
         <div class="relative flex space-x-4 mt-4">
-          {#if moveStage>=currentStage}
+          {#if moveStage>=currentStage && !Stage5Data.rejected1}
           <button 
             type="button" 
             on:click={() => saveShipment(index)}
@@ -4622,7 +4669,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     </button>
   </div>
         {/if}
-        {#if shipment.isEditing}
+        {#if shipment.isEditing && !Stage5Data.rejected1}
           <button 
             type="button" 
             on:click={() => cancelEdit(index)}
@@ -4679,7 +4726,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
 
         
         <!-- Return Pickup toggle button -->
-        {#if moveStage===currentStage}
+        {#if moveStage===currentStage && !Stage5Data.rejected1}
         <button 
           type="button" 
           on:click={() => {
@@ -4786,7 +4833,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
   </table>
 </div>
 
-           {#if !returnPickupDetailsSaved}
+           {#if !returnPickupDetailsSaved && !Stage5Data.rejected1}
              <button 
                type="button" 
                on:click={saveReturnPickupDetails}
@@ -5329,7 +5376,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
           Rejected
         </button>
       </div>
-
+      
       <!-- Remark input field -->
       {#if Stage5Data.accStatus}
         <div class="mt-6">
@@ -5348,6 +5395,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
 
       <!-- Save/Edit button -->
       <div class="mt-6 text-right">
+      {#if currentStage!=6}  
       <button 
         type="button" 
         on:click={() => {
@@ -5368,6 +5416,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
       >
         {Stage5Data.isDataSaved1 ? 'Edit' : 'Save'}
       </button>
+      {/if}
     </div>
   </div>
   <div id="previewModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="display:none;">
@@ -5621,7 +5670,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                 Edit
               </button>
             {/if}    -->    
-            {#if moveStage >= currentStage}
+            {#if (moveStage >= currentStage) && currentStage!=6 }
             <button 
               type="submit" 
               class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition duration-150 ease-in-out ml-auto"
