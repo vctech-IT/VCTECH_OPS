@@ -104,7 +104,7 @@ const prisma = new PrismaClient({
           break;
   
         case 3:
-          console.log("Data received in case 3:");
+          console.log("Data in case 3:");
           console.log(JSON.stringify(data, null, 2));
 
           const existingInstallation = await prisma.installation.findUnique({
@@ -205,21 +205,32 @@ const prisma = new PrismaClient({
 
         case 5:
           console.log("Data in stage 5:", JSON.stringify(data, null, 2));
+          const existingStage5 = await prisma.stage5.findUnique({
+            where: { SONumber: data.SONumber }
+          });
+
+          if (existingStage5) {
+            result = await prisma.stage5.update({
+              where: { SONumber: data.SONumber },
+              data: {
+                rejected1: data.rejected1,
+                accStatus: data.accStatus,
+                accRemark: data.accRemark,
+              }
+            });
+          }
+          else{
           await prisma.stage5.create({
             data: {
               SONumber: data.SONumber,
               accStatus: data.accStatus,
               rejected1: data.rejected1,
               accRemark: data.accRemark,
-              retaccStatus: data.retaccStatus,
-              rejected2: data.rejected2,
-              retaccRemark: data.retaccRemark,
               isDataSaved1: data.isDataSaved1,
               isEditing1: data.isEditing1,
-              isDataSaved2: data.isDataSaved2,
-              isEditing2: data.isEditing2
             },
           });
+        }
           break;
         
         case 6: // Completion stage
@@ -241,7 +252,7 @@ const prisma = new PrismaClient({
                 role: 'System',
                 action: 'Order Completed',
                 category: 'Order Lifecycle',
-                details: `Order ${data.SONumber} has been finalized and completed`
+                details: Order ${data.SONumber} has been finalized and completed
               }
             });
 
