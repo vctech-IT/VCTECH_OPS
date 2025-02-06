@@ -598,23 +598,16 @@ onDestroy(() => {
     <div class="bg-white rounded-lg shadow-md p-6 mb-8">
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">Orders by Stage</h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-	{#each ordersByStage
-	  .sort(sortStages)
-	  .filter(({ stage }) => {
-	    // Check if stage number is outside the known range
-	    return stage < 0 || stage > 7 || !Object.keys(getStageTitle(stage))
-	      .filter(title => title !== "Unknown Stage")
-	      .length;
-	  }) as { stage, count }}
-	  <KPISTAGECard
-	    title={`Stage ${stage}`} 
-	    title2={getStageTitle(stage)}
-	    value={count} 
-	    icon="layer-group" 
-	    color={getStageColor(stage)} 
-	    on:click={handleCardClick}
-	  />
-	{/each}
+        {#each ordersByStage.sort(sortStages) as { stage, count }}
+          <KPISTAGECard
+            title={`Stage ${stage}`} 
+            title2={getStageTitle(stage)}
+            value={count} 
+            icon="layer-group" 
+            color={getStageColor(stage)} 
+            on:click={handleCardClick}
+          />
+        {/each}
       </div>
     </div>
 
