@@ -28,60 +28,61 @@
   { icon: Truck, label: 'Delivery Challans', href: '/deliveryChallan' }
 ];
 
-  const handleNavigation = (href: string) => {
-    if (href === 'api/export-data') {
-      showExportModal = true;
-    } else {
-      isLoading.set(true);
-      goto(href).then(() => {
-        isLoading.set(false);
-      });
-    }
-  };
-
-  const handleExport = async (event: CustomEvent) => {
+const handleNavigation = (href: string) => {
+  if (href === 'api/export-data') {
+    showExportModal = true;
+  } else {
     isLoading.set(true);
-    showExportModal = false;
-
-    const { pmName, orderStatus, category, clientName } = event.detail;
-    const queryParams = new URLSearchParams({
-      pmName,
-      orderStatus,
-      category,
-      clientName
-    }).toString();
-
-    try {
-      const response = await fetch(`api/export-data?${queryParams}`);
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = 'database_export.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Export Successful',
-        text: 'Your data has been exported successfully.',
-      });
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Export Failed',
-        text: 'There was an error exporting your data. Please try again.',
-      });
-    } finally {
+    goto(href).then(() => {
       isLoading.set(false);
+    });
+  }
+};
+
+const handleExport = async (event: CustomEvent) => {
+  isLoading.set(true);
+  showExportModal = false;
+
+  const { pmName, orderStatus, category, clientName } = event.detail;
+  const queryParams = new URLSearchParams({
+    pmName,
+    orderStatus,
+    category,
+    clientName
+  }).toString();
+
+  try {
+    // Add forward slash to make it an absolute path
+    const response = await fetch(`/api/export-data?${queryParams}`);
+    if (!response.ok) {
+      throw new Error('Export failed');
     }
-  };
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'database_export.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Export Successful',
+      text: 'Your data has been exported successfully.',
+    });
+  } catch (error) {
+    console.error('Error exporting data:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Export Failed',
+      text: 'There was an error exporting your data. Please try again.',
+    });
+  } finally {
+    isLoading.set(false);
+  }
+};
 </script>
 
 <aside class="bg-sky-950 text-white h-screen flex flex-col transition-all duration-300 ease-in-out {isMinimized ? 'w-14' : 'w-48'} shadow-md z-20">
