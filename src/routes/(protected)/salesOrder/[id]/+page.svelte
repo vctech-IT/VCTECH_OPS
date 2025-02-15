@@ -8,6 +8,7 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import { fade } from 'svelte/transition';
   import StageUpdateModal from '$lib/components/StageUpdateModal.svelte';
+  import CustomLoader from '$lib/components/CustomLoader.svelte';
   import { writable } from 'svelte/store';
   import { ArrowLeft, Download, ChevronDown, ChevronUp } from 'svelte-lucide';
   import { logStore, type LogEntry } from '../../../../lib/stores/LogStore';
@@ -24,6 +25,7 @@
 
 let currentPage = 1;
 let logsPerPage = 5;
+let isLoading = false;
 
 
 
@@ -550,7 +552,7 @@ async function refreshActivityLogs() {
 /> -->
 {#if showStageUpdateModal}
 <StageModal
-username={data.user.name}
+  username={data.user.name}
   userRole={data.user.role}
   currentStage={currentStage?.currentStage ?? null}
   data={{
@@ -568,8 +570,18 @@ username={data.user.name}
   salesOrder={salesOrder}
   Stage0Data={Stage0Data}
   on:activityLogged={refreshActivityLogs}
-  on:close={() => showStageUpdateModal = false}
+  on:close={() => {
+    showStageUpdateModal = false;
+    isLoading = true;
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  }}
 />
+{/if}
+
+{#if isLoading}
+  <CustomLoader message="Please Wait, Updating Sales Order..." />
 {/if}
 
 <ChatBox 
