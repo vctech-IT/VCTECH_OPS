@@ -19,7 +19,8 @@ import { quintOut } from 'svelte/easing';
 import {  Filter } from 'lucide-svelte';
 import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
-	import { Interface } from 'readline';
+import { Interface } from 'readline';
+import CustomLoader from '$lib/components/CustomLoader.svelte';
 
 
 
@@ -60,6 +61,7 @@ let selectedClient: string | null = null;
 let selectedCategory: string | null = null;
 let pmNames: string[] = [];
 let selectedPM: string = 'all';
+let isLoadingKPIData = false;
 
 interface OrderDetail {
   SONumber: string;
@@ -410,34 +412,39 @@ function handleDateRangeChange(event: any) {
 
 async function handleCardClick(event: any) {
   const { title, value } = event.detail;
-  const stage = parseInt(title.split(' ')[1]); 
-
-  if (!isNaN(stage)) {
-    const response = await fetch('/api/stage-details', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage, ...dateRange, orderStatus, pmNameFilter: selectedPM })
-    });
-    const data = await response.json();
-    
-    modalContent = processModalData(data.orders, getStageTitle(stage), value);
-  } else if (title === "Total Installations") {
-    modalContent = processInstallationData(installationDetails, value);
-  } else if (title === "Total Services") {
-    modalContent = processServiceData(serviceDetails, value);
-  } else {
-    modalContent = { 
-      title, 
-      totalOrders: value, 
-      totalSum: 0, 
-      categorizedData: { byClient: {}, byCategory: {} },
-      soNumbers: [],
-      agingData: agingData.details,
-      orderDetails: []
-    };
+  isLoadingKPIData = true;
+  
+  try {
+    const stage = parseInt(title.split(' ')[1]); 
+    if (!isNaN(stage)) {
+      const response = await fetch('/api/stage-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage, ...dateRange, orderStatus, pmNameFilter: selectedPM })
+      });
+      const data = await response.json();
+      modalContent = processModalData(data.orders, getStageTitle(stage), value);
+    } else if (title === "Total Installations") {
+      modalContent = processInstallationData(installationDetails, value);
+    } else if (title === "Total Services") {
+      modalContent = processServiceData(serviceDetails, value);
+    } else {
+      modalContent = { 
+        title, 
+        totalOrders: value, 
+        totalSum: 0, 
+        categorizedData: { byClient: {}, byCategory: {} },
+        soNumbers: [],
+        agingData: agingData.details,
+        orderDetails: []
+      };
+    }
+    showModal = true;
+  } catch (error) {
+    console.error('Error loading data:', error);
+  } finally {
+    isLoadingKPIData = false;
   }
-  showModal = true;
-  saveState();
 }
 
 function processModalData(orders: any[], title: string, totalOrders: number): ModalContent {
@@ -901,13 +908,13 @@ onDestroy(() => {
 
 
 
-    {#if isLoading}
-      <div class="fixed inset-0 bg-slate-600 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-4 rounded-lg shadow-lg">
-          <p class="text-lg font-semibold">Loading...</p>
-        </div>
-      </div>
-    {/if}
+{#if isLoadingKPIData}
+  <CustomLoader message="Loading data..." />
+{/if}
+
+{#if isLoading}
+  <CustomLoader message="Loading Sales Order..." />
+{/if}
 
 <style>
   :global(body) {
