@@ -895,7 +895,11 @@ onDestroy(() => {
                       </td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
-		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOAmount}</td>
+		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">  ₹{new Intl.NumberFormat('en-IN', { 
+											    minimumFractionDigits: 2,
+											    maximumFractionDigits: 2
+											  }).format(order.SOAmount)}
+											</td>
 
                     </tr>
                   {/each}
