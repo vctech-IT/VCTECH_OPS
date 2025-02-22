@@ -68,6 +68,7 @@ interface OrderDetail {
   SOId: string;
   clientName: string;
   SOCategory: string;
+  SOAmount: number;
 }
 
 let searchTerm = '';
@@ -366,7 +367,7 @@ function processServiceData(details: any[], totalServices: number): ModalContent
       SONumber: service.SONumber,
       SOId: service.SOId,
       clientName: service.clientName,
-      SOCategory: service.category
+      SOCategory: service.category,
     });
   }
 
@@ -478,7 +479,8 @@ function processModalData(orders: any[], title: string, totalOrders: number): Mo
     SONumber: order.SONumber,
     SOId: order.SOId,
     clientName: order.clientName,
-    SOCategory: order.SOCategory
+    SOCategory: order.SOCategory,
+	SOAmount: order.Total,
   }));
 
   return {
@@ -868,7 +870,7 @@ onDestroy(() => {
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    {#each ['SONumber', 'Client Name', 'Category'] as column}
+                    {#each ['SONumber', 'Client Name', 'Category', 'Amount'] as column}
                       <th 
                         scope="col" 
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -893,6 +895,8 @@ onDestroy(() => {
                       </td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
+		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOAmount}</td>
+
                     </tr>
                   {/each}
                 </tbody>
