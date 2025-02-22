@@ -895,7 +895,7 @@ onDestroy(() => {
                       </td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
-		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount.toLocaleString()}</td>
+		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
                     </tr>
                   {/each}
                 </tbody>
