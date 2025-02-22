@@ -3328,7 +3328,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     <div class="mb-8">
       <div class="relative flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold">Stages</h2>
-      <div class="relative" bind:this={dropdownContainer}>
+     <div class="relative flex items-center gap-2" bind:this={dropdownContainer}>
         <button 
           class="text-2xl font-bold focus:outline-none text-gray-600 hover:text-gray-800 transition-colors duration-200"
           on:click={toggleDropdown}
@@ -3337,7 +3337,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         </button>
         <button 
           class="text-xl font-bold focus:outline-none text-gray-600 hover:text-gray-800 transition-colors duration-200"
-          on:click={() => closeModal()}
+          on:click={() => dispatch('close')}
         >
           ✕
         </button>
