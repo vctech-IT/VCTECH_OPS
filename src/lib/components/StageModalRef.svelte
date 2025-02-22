@@ -3335,6 +3335,12 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         >
           ⋮
         </button>
+        <button 
+          class="text-xl font-bold focus:outline-none text-gray-600 hover:text-gray-800 transition-colors duration-200"
+          on:click={() => closeModal()}
+        >
+          ✕
+        </button>
         {#if showDropdown}
         <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10 overflow-hidden">
             <button 
