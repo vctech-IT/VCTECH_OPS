@@ -26,6 +26,7 @@
 let currentPage = 1;
 let logsPerPage = 5;
 let isLoading = false;
+let submissionSuccessful = false;
 
 
 
