@@ -570,14 +570,19 @@ async function refreshActivityLogs() {
   salesOrder={salesOrder}
   Stage0Data={Stage0Data}
   on:activityLogged={refreshActivityLogs}
- on:submitSuccess={(event) => {
-    if (event.detail) { // if submission was successful
+  on:submitSuccess={(event) => {
+    if (event.detail) {
+      // Set a flag indicating successful submission
+      submissionSuccessful = true;
+    }
+  }}
+  on:close={() => {
+    showStageUpdateModal = false;
+    // If submission was successful, reload after modal closes
+    if (submissionSuccessful) {
       isLoading = true;
       window.location.reload();
     }
-  }}
-    on:close={() => {
-    showStageUpdateModal = false;
   }}
 />
 {/if}
