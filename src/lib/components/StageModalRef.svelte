@@ -777,7 +777,8 @@ function goToPreviousStage() {
   // Form submission and validation
 async function handleSubmit(event: Event) {
     event.preventDefault();
-    if (currentStage === 1) {
+    try{
+          if (currentStage === 1) {
       
     if (!allLineItemsFrozen()) {
       await Swal.fire({
@@ -846,6 +847,19 @@ async function handleSubmit(event: Event) {
     }
     } 
     }
+    dispatch('submitSuccess', true);
+    return true;
+    }catch (error) {
+    console.error('Error:', error);
+    await Swal.fire({
+      title: 'Error',
+      text: 'An error occurred while submitting. Please try again.',
+      icon: 'error'
+    });
+    dispatch('submitSuccess', false);
+    return false;
+  }
+
   }
 
   async function confirmSubmit() {
