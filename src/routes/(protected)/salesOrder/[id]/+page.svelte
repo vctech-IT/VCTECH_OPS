@@ -570,12 +570,14 @@ async function refreshActivityLogs() {
   salesOrder={salesOrder}
   Stage0Data={Stage0Data}
   on:activityLogged={refreshActivityLogs}
-  on:close={() => {
-    showStageUpdateModal = false;
-    isLoading = true;
-    setTimeout(() => {
+ on:submitSuccess={(event) => {
+    if (event.detail) { // if submission was successful
+      isLoading = true;
       window.location.reload();
-    }, 500);
+    }
+  }}
+    on:close={() => {
+    showStageUpdateModal = false;
   }}
 />
 {/if}
