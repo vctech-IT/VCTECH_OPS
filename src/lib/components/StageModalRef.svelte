@@ -4151,7 +4151,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                   type="checkbox" 
                   bind:checked={item.isAvailable} 
                   on:change={() => handleAvailabilityChange(item.Itemid, 'available')}
-                  disabled={item.isAvailabilityFrozen || item.needToPurchaseLocally|| !isEditing}
+                  disabled={!isEditing}
                   class="form-checkbox h-5 w-5 text-blue-600 transition duration-150 ease-in-out"
                 >
                 <span class="ml-2">{item.isAvailable ? 'Yes' : 'No'}</span>
@@ -4163,7 +4163,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                   type="checkbox" 
                   bind:checked={item.needToPurchaseLocally} 
                   on:change={() => handleAvailabilityChange(item.Itemid, 'need_to_purchase')}
-                  disabled={item.isAvailabilityFrozen || item.isAvailable|| !isEditing}
+                  disabled={!isEditing}
                   class="form-checkbox h-5 w-5 text-indigo-600 transition duration-150 ease-in-out"
                 >
                 <span class="ml-2">{item.needToPurchaseLocally ? 'Yes' : 'No'}</span>
