@@ -436,39 +436,59 @@
           <p class="text-sm text-gray-500">
             Type <span class="font-bold">{deleteConfirmUser.username}</span> to confirm deletion.
           </p>
-          <input
-            type="text"
-            bind:value={deleteConfirmUsername}
-            class="mt-2 px-3 py-2 border border-gray-300 rounded-md w-full"
-            placeholder="Type username here"
-          />
+          <div class="relative mt-2">
+            <input
+              type="text"
+              bind:value={deleteConfirmUsername}
+              class="px-3 py-2 border rounded-md w-full transition-all duration-300 
+                {deleteConfirmUsername === deleteConfirmUser.username 
+                  ? 'border-green-500 ring-2 ring-green-200' 
+                  : deleteConfirmUsername && deleteConfirmUsername.length > 0 
+                    ? 'border-red-300' 
+                    : 'border-gray-300'}"
+              placeholder="Type username here"
+            />
+            {#if deleteConfirmUsername === deleteConfirmUser.username}
+              <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            {/if}
+          </div>
           {#if deleteError}
             <p class="text-red-500 text-sm mt-2">{deleteError}</p>
           {/if}
+          {#if deleteConfirmUsername && deleteConfirmUsername.length > 0 && deleteConfirmUsername !== deleteConfirmUser.username}
+            <p class="text-red-500 text-sm mt-2">Username doesn't match</p>
+          {/if}
         </div>
         <div class="items-center px-4 py-3 flex flex-col sm:flex-row justify-between gap-2">
-  <form on:submit={handleDeleteSubmit} class="w-full sm:w-1/2">
-    <input type="hidden" name="userId" value={deleteConfirmUser.id} />
-    <button
-      type="submit"
-      class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
-      disabled={deleteConfirmUsername !== deleteConfirmUser.username || isLoading}
-    >
-      {#if isLoading}
-        <span class="loader"></span>
-      {:else}
-        Delete
-      {/if}
-    </button>
-  </form>
-  <button
-    on:click={cancelDelete}
-    class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full sm:w-1/2 shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300"
-    disabled={isLoading}
-  >
-    Cancel
-  </button>
-</div>
+          <form on:submit={handleDeleteSubmit} class="w-full sm:w-1/2">
+            <input type="hidden" name="userId" value={deleteConfirmUser.id} />
+            <button
+              type="submit"
+              class="px-4 py-2 text-white text-base font-medium rounded-md w-full shadow-sm transition-all duration-300
+                {deleteConfirmUsername === deleteConfirmUser.username
+                  ? 'bg-red-500 hover:bg-red-600 cursor-pointer transform hover:scale-105'
+                  : 'bg-red-300 cursor-not-allowed'}"
+              disabled={deleteConfirmUsername !== deleteConfirmUser.username || isLoading}
+            >
+              {#if isLoading}
+                <span class="loader"></span>
+              {:else}
+                Delete
+              {/if}
+            </button>
+          </form>
+          <button
+            on:click={cancelDelete}
+            class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full sm:w-1/2 shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300"
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   </div>
