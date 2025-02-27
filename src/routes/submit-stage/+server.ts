@@ -26,7 +26,7 @@ const prisma = new PrismaClient({
           });
           break;
         case 1:
-          // console.log("Line Items:", JSON.stringify(data.lineItems, null, 2));
+          console.log("Line Items:", JSON.stringify(data.lineItems, null, 2));
           // console.log("DC Boxesss:", JSON.stringify(data.dcBoxes, null, 2));
           // console.log("Partial Deliveryyyy:", JSON.stringify(data.partialDelivery, null, 2));
 
@@ -48,6 +48,7 @@ const prisma = new PrismaClient({
                 status: item.status,
                 isAvailabilityFrozen: item.isAvailabilityFrozen,
                 needToPurchaseLocally: item.needToPurchaseLocally,
+                isStage2Required : item.isStage2Required,
                 isAvailable: item.isAvailable,
                 serialNo: item.serialNo,
                 invoiceNo: item.invoiceNo,
@@ -86,6 +87,7 @@ const prisma = new PrismaClient({
             })}
           break;
         case 2:
+          console.log("Stage2 payload:", JSON.stringify(data.lineItems, null, 2));
           for (const item of data.lineItems) {
             await prisma.lineItems.updateMany({
               where: {
@@ -98,6 +100,8 @@ const prisma = new PrismaClient({
                 invoiceNo: item.invoiceNo,
                 invoiceattachment: item.invoiceattachment, // Ensure this field is correctly named and exists in the schema
                 status: item.status, // Update the status to 'available' or 'need to purchase locally'
+                isAvailable: item.isAvailable,
+                needToPurchaseLocally : item.needToPurchaseLocally,
               },
             });
           }
