@@ -116,6 +116,7 @@ model LineItems{
   status          String
   isAvailabilityFrozen  Boolean
   needToPurchaseLocally   Boolean
+  isStage2Required  Boolean
   isAvailable  Boolean
   serialNo     String?
   invoiceNo    String?
