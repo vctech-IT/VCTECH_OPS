@@ -1,6 +1,6 @@
 <script lang="ts">
   // Imports
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import type { SalesOrder } from '$lib/types';
   import type { PageData } from '../../routes/$types';
   import Swal from 'sweetalert2';
@@ -138,7 +138,7 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
   { 
     title: 'Stage 2. Material to Procure', 
     completed: false, 
-    visible: true,
+    visible: false,
     editableRoles: ['ADMIN', 'MANAGER', 'MATERIALPROCURE']
   },
   { 
@@ -216,6 +216,7 @@ onMount(async () => {
     SONumber: salesOrder.salesorder_number,
     isAvailabilityFrozen: false,   
     isAvailable: false,   
+    isStage2Required : false,
     needToPurchaseLocally: false,          
     name: item.name || item.group_name,  
     quantity: item.quantity,
@@ -308,6 +309,7 @@ if ( currentStage === 1) {
     SONumber: salesOrder.salesorder_number,
     isAvailabilityFrozen: false,   
     isAvailable: false,   
+    isStage2Required : false,
     needToPurchaseLocally: false,          
     name: item.name || item.group_name,  
     quantity: item.quantity,
@@ -642,6 +644,7 @@ function submitMonitoring(): void {
     Itemid: string;
     SONumber: string;
     isAvailabilityFrozen: any;
+    isStage2Required : boolean;
     needToPurchaseLocally: boolean;
 	  isAvailable: boolean;
     name: string;
@@ -678,7 +681,7 @@ function submitMonitoring(): void {
     lineItemIndices: number[];
     fileName: string;
     filePreviewUrl: string | null;
-    billType: 'DC' | 'E-way';
+    billType: 'DC' | 'E_way';
     isTypeSet: boolean;
     isEditing: boolean;
 }
@@ -775,81 +778,57 @@ function goToPreviousStage() {
   }
 
   // Form submission and validation
-async function handleSubmit(event: Event) {
-    event.preventDefault();
-    try{
-          if (currentStage === 1) {
-      
-    if (!allLineItemsFrozen()) {
-      await Swal.fire({
-        title: 'Oops...',
-        text: 'Please ensure all line items are saved (Available, Need to purchase locally, or Not Required).',
-        icon: 'warning',
-        confirmButtonText: 'OK'
-      });
-      return;
-    }
+  async function handleSubmit(event: Event) {
+  event.preventDefault();
 
-    if (!allStatusesFilled) {
-      await Swal.fire({
-        title: 'Oops...',
-        text: 'Please select a status for all line items before submitting.',
-        icon: 'warning',
-        confirmButtonText: 'OK'
-      });
-      return;
-    }
+  try {
+    if (currentStage === 1) {
+      // if (!allLineItemsFrozen()) {
+      //   await Swal.fire({
+      //     title: 'Oops...',
+      //     text: 'Please ensure all line items are saved (Available, Need to purchase locally, or Not Required).',
+      //     icon: 'warning',
+      //     confirmButtonText: 'OK'
+      //   });
+      //   return;
+      // }
 
-    const unfilledDCs = dcBoxes.filter(dc => !dc.isSaved && !isCurrentDCFilled());
-    if (unfilledDCs.length > 0) {
-      await Swal.fire({
-        title: 'Oops...',
-        text: 'Please fill and save all DC details before submitting.',
-        icon: 'warning',
-        confirmButtonText: 'OK'
-      });
-      return;
-    }
+      if (!allStatusesFilled) {
+        await Swal.fire({
+          title: 'Oops...',
+          text: 'Please select a status for all line items before submitting.',
+          icon: 'warning',
+          confirmButtonText: 'OK'
+        });
+        return;
+      }
 
-    showConfirmationPopup = true;
-  } else {
-  if (currentStage === 2) {
-    if (allItemsSaved) {
+      const unfilledDCs = dcBoxes.filter(dc => !dc.isSaved && !isCurrentDCFilled());
+      if (unfilledDCs.length > 0) {
+        await Swal.fire({
+          title: 'Oops...',
+          text: 'Please fill and save all DC details before submitting.',
+          icon: 'warning',
+          confirmButtonText: 'OK'
+        });
+        return;
+      }
+
       showConfirmationPopup = true;
-    } else {
-      await Swal.fire({
-        title: 'Oops...',
-        text: 'Please save all items before submitting the stage.',
-        icon: 'warning',
-        confirmButtonText: 'OK'
-      });
-    }
-  } else {
-
-  if (currentStage === (stageData[4].visible ? 5 : 4)) {
-    // Share with Account stage
+    } else if (currentStage === (stageData[4].visible ? 5 : 4)) {
+      // Share with Account stage
       const allItemsHaveStatus = [...shipments, returnPickup]
         .filter(item => item.isSaved)
         .every(item => item.accountStatus && item.accountRemark.trim());
-      
-      // if (allItemsHaveStatus) {
-        showConfirmationPopup = true;
-      // } else {
-      //   await Swal.fire({
-      //   title: 'Oops...',
-      //   text: 'Please select a status and fill up the remark for all items.',
-      //   icon: 'warning',
-      //   confirmButtonText: 'OK'
-      // });
-      // }
+
+      showConfirmationPopup = allItemsHaveStatus;
     } else {
       showConfirmationPopup = true;
     }
-    } 
-    }
+
     dispatch('submitSuccess', true);
     return true;
-    }catch (error) {
+  } catch (error) {
     console.error('Error:', error);
     await Swal.fire({
       title: 'Error',
@@ -859,8 +838,8 @@ async function handleSubmit(event: Event) {
     dispatch('submitSuccess', false);
     return false;
   }
+}
 
-  }
 
   async function confirmSubmit() {
     try {
@@ -911,15 +890,15 @@ async function handleSubmit(event: Event) {
       } 
         break;
     case 1:
-      if (!allLineItemsFrozen()) {
-        await Swal.fire({
-        title: 'Oops...',
-        text: 'Please ensure all line items are saved (Available, Need to purchase locally, or Not Required).',
-        icon: 'warning',
-        confirmButtonText: 'OK'
-      });
-      return;
-      }
+      // if (!allLineItemsFrozen()) {
+      //   await Swal.fire({
+      //   title: 'Oops...',
+      //   text: 'Please ensure all line items are saved (Available, Need to purchase locally, or Not Required).',
+      //   icon: 'warning',
+      //   confirmButtonText: 'OK'
+      // });
+      // return;
+      // }
       if (!allStatusesFilled) {
         await Swal.fire({
         title: 'Oops...',
@@ -985,7 +964,9 @@ async function handleSubmit(event: Event) {
         icon: 'success',
         confirmButtonText: 'OK'
       });
+      currentStage=moveStage=currentStage+1;
       break;
+    
     case 2:
       if (allItemsSaved) {
         await Swal.fire({
@@ -1051,11 +1032,6 @@ async function handleSubmit(event: Event) {
         return;
       }
     } 
-    // else {
-    //   // Handle the case when Return Pickup is not visible (skipped)
-    //   // await Swal.fire("Moving to Share with Account stage.");
-    //   // currentStage = 5;
-    // }
     break;
     case 5:
     const approvedItems = [Stage5Data]
@@ -1119,6 +1095,7 @@ async function handleSubmit(event: Event) {
         loading.hide();
     } 
 }
+
 const resubmitReport = async (index: number) => { 
   try {
     // Show loading indicator
@@ -1330,6 +1307,7 @@ async function handleSave() {
   if (allItemsNotAvailable) {
     lineItemsWithStatus.forEach(item => {
       item.isAvailabilityFrozen = true;
+      item.isStage2Required = true;
     });
     notAvailableItems = [...lineItemsWithStatus];
     await Swal.fire({
@@ -1345,7 +1323,7 @@ async function handleSave() {
     // If the bill type hasn't been set yet (user didn't interact with the form),
     // set it now based on the current subtotal
     if (!currentDC.isTypeSet) {
-        currentDC.billType = dcOrderTotal.subtotal >= 50000 ? 'E-way' : 'DC';
+        currentDC.billType = dcOrderTotal.subtotal >= 50000 ? 'E_way' : 'DC';
         currentDC.isTypeSet = true;
     }
   
@@ -1356,24 +1334,8 @@ async function handleSave() {
     if (currentDC.isSaved) {
         currentDC.dcAmount = dcOrderTotal.subtotal;
     }
+
     
-  //    if (currentDC.isSaved) {
-  //   // Generate and download PDF after saving
-  //   generateAndDownloadPDF(currentDC);
-  // }
-    try {
-      await fetch(`/submit-stage`, { 
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage: currentStage, 
-        data: {
-        lineItems: lineItemsWithStatus,
-        dcBoxes: currentDC,
-        partialDelivery: userEnabledPartialDelivery
-      } })});
-    }catch (error) {
-      console.error('Error:', error);
-    }
 
   // Associate newly available or purchasable items with the current DC
   lineItemsWithStatus.forEach((item, index) => {
@@ -1403,11 +1365,30 @@ async function handleSave() {
   saveCurrentState();
   canAccessNextStage = true;
   
-    if (partialDelivery && userEnabledPartialDelivery) {
+  if (partialDelivery && userEnabledPartialDelivery) {
     const remainingUnsavedItems = lineItemsWithStatus.filter(item => 
       !frozenLineItems[item.Itemid] && 
       (item.status === 'available' || item.status === 'need_to_purchase')
     );
+
+    lineItemsWithStatus.forEach(item => {
+      item.isAvailabilityFrozen = true;
+      item.isStage2Required = true;
+    });
+
+    try {
+      await fetch(`/submit-stage`, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: currentStage, 
+        data: {
+        lineItems: lineItemsWithStatus,
+        dcBoxes: currentDC,
+        partialDelivery: userEnabledPartialDelivery
+      } })});
+    }catch (error) {
+      console.error('Error:', error);
+    }
 
     if (remainingUnsavedItems.length === 0) {
       // All available/purchasable items have been saved in DCs, move to Material to Procure stage
@@ -1426,7 +1407,21 @@ async function handleSave() {
         confirmButtonText: 'OK'
       });
     }
-  } else {
+  } 
+  else {
+    try {
+      await fetch(`/submit-stage`, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: currentStage, 
+        data: {
+        lineItems: lineItemsWithStatus,
+        dcBoxes: currentDC,
+        partialDelivery: userEnabledPartialDelivery
+      } })});
+    }catch (error) {
+      console.error('Error:', error);
+    }
     await Swal.fire({
       title: 'Success',
       text: 'DC saved successfully.',
@@ -1500,10 +1495,15 @@ async function handleSaveAllNotAvailable() {
   loading.show('Processing not available items...');
   // Update notAvailableItems for the next stage
   notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available');
-  
-
    // Handle not required items
    const notRequiredItems = lineItemsWithStatus.filter(item => item.status === 'not_required');
+
+   if (notAvailableItems.length>0){
+    lineItemsWithStatus = lineItemsWithStatus.map(item => ({
+      ...item,
+      isStage2Required: true
+    }));
+  }
   // Trigger reactivity
   lineItemsWithStatus = [...lineItemsWithStatus];
 
@@ -1539,6 +1539,7 @@ async function handleSaveAllNotAvailable() {
     });
     
     stageData[currentStage].completed = true;
+    currentStage=moveStage=currentStage+1;
     
   } else if (notRequiredItems.length > 0) {
     await Swal.fire({
@@ -1551,14 +1552,11 @@ async function handleSaveAllNotAvailable() {
   // Save the current state
   saveCurrentState();
   
-  // Determine next action based on remaining items
-  if (notAvailableItems.length > 0 && notRequiredItems.length !== lineItemsWithStatus.length) {
-    goToNextStage();
-  }
 
   if (currentStage < stageData.length - 1) {
     do {
       currentStage++;
+      moveStage++;
     } while (currentStage < stageData.length && !stageData[currentStage].visible);
   }
   try {
@@ -1647,7 +1645,7 @@ function allLineItemsFrozen() {
   }
 function setBillType(index: number) {
   if (!dcBoxes[index].isTypeSet) {
-    dcBoxes[index].billType = dcOrderTotal.subtotal >= 50000 ? 'E-way' : 'DC';
+    dcBoxes[index].billType = dcOrderTotal.subtotal >= 50000 ? 'E_way' : 'DC';
     dcBoxes[index].isTypeSet = true;
     dcBoxes = [...dcBoxes]; // Trigger reactivity
   }
@@ -1798,7 +1796,7 @@ function generateAndDownloadPDF(dc: DCBox) {
     // Header
     doc.setFontSize(16);
     doc.setTextColor(44, 62, 80);
-    doc.text(dc.billType === 'E-way' ? 'E-way Bill Details' : 'DC Details', 105, 20, { align: 'center' });
+    doc.text(dc.billType === 'E_way' ? 'E_way Bill Details' : 'DC Details', 105, 20, { align: 'center' });
 
     // Decorative line
     doc.setDrawColor(52, 152, 219);
@@ -1882,6 +1880,10 @@ async function saveAndGoToNextStage() {
   
   // Move to the next stage (Material to Procure)
   notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available');
+  lineItemsWithStatus = lineItemsWithStatus.map(item => ({
+    ...item,
+    isStage2Required: true
+  }));
   lineItemsWithStatus = [...lineItemsWithStatus];
   try {
       await fetch(`/submit-stage`, {
@@ -1924,7 +1926,7 @@ async function saveAndGoToNextStage() {
 }
 
   // Function to open preview modal
-  async function openPreviewModal(file: File | null, fileUrl: string | null) {
+async function openPreviewModal(file: File | null, fileUrl: string | null) {
   const modal = document.getElementById('previewModal');
   const previewImage = document.getElementById('previewImage') as HTMLImageElement;
   const previewIframe = document.getElementById('previewIframe') as HTMLIFrameElement;
@@ -2131,20 +2133,20 @@ async function handleAttachmentChange(event: Event, itemId: string) {
 async function handleSaveMaterialToProcure() {
   try{
   loading.show('Saving material details...');  
-  notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available')
-  // const itemsToUpdate = notAvailableItems.filter(item => item.isAvailable || item.needToPurchaseLocally);
-  const itemsToUpdate = lineItemsWithStatus.filter(item => item.status === 'not_available');
+  await tick(); 
+  notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available');
+  const itemsToUpdate = notAvailableItems;
 
   if (itemsToUpdate.length === 0) {
     await Swal.fire('No changes to save.');
     return;
   }
 
-  const invalidItems = itemsToUpdate.filter(item => !item.serialNo || !item.invoiceNo);
+  const invalidItems = itemsToUpdate.filter(item => !item.serialNo);
   if (invalidItems.length > 0) {
     await Swal.fire({
         title: 'Oops...',
-        text: 'Please fill in both Serial No. and Invoice No. for all selected items.',
+        text: 'Please fill in Serial No. for all selected items.',
         icon: 'error',
         confirmButtonText: 'OK'
       });
@@ -2628,18 +2630,6 @@ let returnPickup = {
   let returnPickupMobile = '';
   let returnPickupRemark = '';
 
-  function toggleReturnPickup() {
-    if (Stage4Data.returnPickupRequested && !returnPickupDetailsSaved) {
-      // If cancelling and details are not saved, reset the state
-      Stage4Data.returnPickupRequested = false;
-      returnPickupName = '';
-      returnPickupMobile = '';
-      returnPickupRemark = '';
-    } else if (!Stage4Data.returnPickupRequested) {
-      // If requesting, show the details form
-      Stage4Data.returnPickupRequested = true;
-    }
-}
 
 async function saveReturnPickupDetails() {
   if (Stage4Data.ReturnPickupName && Stage4Data.ReturnPickupMobile.length === 10 && Stage4Data.ReturnPickupRemark) {
@@ -2910,8 +2900,8 @@ function updateDeliveryDateMin() {
   $: {
     if (Stage4Data){
     stageData[4].visible = Stage4Data.returnPickupRequested;
-    stageData = stageData; // Trigger reactivity
     }
+    stageData = stageData;
   } 
 
   $: {
@@ -2926,15 +2916,13 @@ function updateDeliveryDateMin() {
     }
   }
 
-$: {
-  stageData[2].visible = lineItemsWithStatus.some(item => item.status === 'not_available');
-}
+// $: {
+//   stageData[2].visible = lineItemsWithStatus.some(item => item.status === 'not_available');
+// }
 $: allItemsNotAvailable = lineItemsWithStatus.every(item => item.status === 'not_available');
 $: allItemsNotAvailableOrNotRequired = lineItemsWithStatus.every(item => 
   item.status === 'not_available' || item.status === 'not_required'
 );
-
-$: canSubmitLogistics = allLineItemsFrozen() && allStatusesFilled && dcBoxes.every(dc => dc.isSaved || isCurrentDCFilled());
 
 $: visibleStages = (isDropped || isMonitoring) 
     ? stageData.filter(stage => stage.completed)
@@ -2951,6 +2939,34 @@ $: showDCBoxDetails = (allItemsAvailableOrPurchaseOrNotRequired && !anyItemNotAv
 
 $: canAddMoreDC = lineItemsWithStatus.some(item => item.status === 'available' || item.status === 'need_to_purchase');
 
+$: {
+  if (lineItemsWithStatus[0]){
+      console.log("working",lineItemsWithStatus[0].isStage2Required);
+      stageData[2].visible= lineItemsWithStatus[0].isStage2Required  || lineItemsWithStatus.some(item => item.status === 'not_available');
+    }
+    stageData = stageData;
+}
+
+function updateSerialNo(event, index) {
+    if (notAvailableItems.length > 0 && notAvailableItems[index]) {
+      notAvailableItems[index].serialNo = event.target.value;
+    } else {
+      const filteredItems = lineItemsWithStatus.filter(item => item.serialNo);
+      if (filteredItems[index]) {
+        filteredItems[index].serialNo = event.target.value;
+      }
+    }
+  }
+function updateInvoiceNo(event, index) {
+    if (notAvailableItems.length > 0 && notAvailableItems[index]) {
+      notAvailableItems[index].invoiceNo = event.target.value;
+    } else {
+      const filteredItems = lineItemsWithStatus.filter(item => item.serialNo);
+      if (filteredItems[index]) {
+        filteredItems[index].invoiceNo = event.target.value;
+      }
+    }
+  }
 
     let showDetailsModal = false;
     let selectedDC: DCBox | null = null;
@@ -3243,7 +3259,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
         needToPurchaseLocally: item.needToPurchaseLocally || false,
         isAvailable: item.isAvailable || false,
       }));
-      // console.log("Items func", lineItemsWithStatus);
+      console.log("Items func", lineItemsWithStatus);
     }
 
     if (data.stage1.dcBoxes && data.stage1.dcBoxes.length > 0) {
@@ -3342,18 +3358,18 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     <div class="mb-8">
       <div class="relative flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold">Stages</h2>
-     <div class="relative flex items-center gap-2" bind:this={dropdownContainer}>
-       <!-- <button 
-          class="text-2xl font-bold focus:outline-none text-gray-600 hover:text-gray-800 transition-colors duration-200"
-          on:click={toggleDropdown}
-        >
-          ⋮
-        </button> -->
-        <button 
-          class="text-xl font-bold focus:outline-none text-gray-600 hover:text-gray-800 transition-colors duration-200"
-          on:click={() => dispatch('close')}
-        >
-          ✕
+      <div class="relative flex items-center gap-2" bind:this={dropdownContainer}>
+        <!-- <button 
+           class="text-2xl font-bold focus:outline-none text-gray-600 hover:text-gray-800 transition-colors duration-200"
+           on:click={toggleDropdown}
+         >
+           ⋮
+         </button> -->
+         <button 
+           class="text-xl font-bold focus:outline-none text-gray-600 hover:text-gray-800 transition-colors duration-200"
+           on:click={() => dispatch('close')}
+         >
+           ✕
         </button>
         {#if showDropdown}
         <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10 overflow-hidden">
@@ -3762,7 +3778,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                 on:mouseleave={() => isHovered = false}
               >
                 <h4 id="dc-details-title-{index}" class="text-xl font-bold mb-6 text-gray-800 flex items-center">
-                  <span class="mr-2">{dc.billType === 'E-way' ? 'E-way Bill' : 'DC'} Details</span>
+                  <span class="mr-2">{dc.billType === 'E_way' ? 'E-way Bill' : 'DC'} Details</span>
                   {#if isHovered}
                     <span class="text-sm font-normal text-gray-500" transition:fade>#{index + 1}</span>
                   {/if}
@@ -3772,7 +3788,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                   <div class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
                     <div class="flex-1">
                       <label for="dc-number-{index}" class="block text-sm font-medium text-gray-700 mb-1">
-                        {dc.billType === 'E-way' ? 'E-way Number:' : 'DC Number:'}
+                        {dc.billType === 'E_way' ? 'E-way Number:' : 'DC Number:'}
                       </label>
                       <div class="relative">
                       <input 
@@ -3780,7 +3796,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                         id="dc-number-{index}"
                         bind:value={dc.DCNumber}
                         bind:this={inputRef} 
-                        placeholder={dc.billType === 'E-way' ? "Enter E-way number" : "Enter DC number"}
+                        placeholder={dc.billType === 'E_way' ? "Enter E-way number" : "Enter DC number"}
                         class="block w-full pl-3 pr-10 py-2 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         class:opacity-50={dc.isSaved}
                         disabled={dc.isSaved || !isEditing}
@@ -3885,7 +3901,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                       DC Bill
                     </button>
                     <button
-                     class="px-6 py-2.5 rounded-lg font-medium transition-all duration-200 ease-in-out {dc.billType === 'E-way' ? 'bg-white text-blue-600 shadow-md' : 'text-gray-600 hover:bg-gray-200'}"
+                     class="px-6 py-2.5 rounded-lg font-medium transition-all duration-200 ease-in-out {dc.billType === 'E_way' ? 'bg-white text-blue-600 shadow-md' : 'text-gray-600 hover:bg-gray-200'}"
                     >
                       E-way Bill
                     </button>
@@ -3911,7 +3927,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
 
                     <div>
                       <label for="dc-amount-{index}" class="block text-sm font-medium text-gray-700 mb-1">
-                        {dc.billType === 'E-way' ? 'E-way Bill Amount:' : 'DC Amount:'}
+                        {dc.billType === 'E_way' ? 'E-way Bill Amount:' : 'DC Amount:'}
                       </label>
                       <p id="dc-amount-{index}" class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
                         {formatCurrency(dc.isSaved ? dc.dcAmount : dcOrderTotal.subtotal)}
@@ -3950,44 +3966,6 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                       </div>
                     {/if}
                   </div>
-                  
-              <!-- {#if dc.isSaved}
-              <div class="mt-8">
-                <h4 class="text-lg font-bold mb-4">Line Items in this {dcOrderTotal.subtotal >= 50000 ? 'E-way Bill' : 'DC'}</h4>
-                <div class="overflow-x-auto bg-white shadow-md rounded-lg">
-                  <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                      <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                      {#each dc.lineItemIndices as itemIndex, i}
-                        {@const item = lineItemsWithStatus[itemIndex]}
-                        <tr class="hover:bg-gray-50 transition-colors duration-200">
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{i + 1}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.quantity} {item.unit}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(item.rate)}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(item.amount)}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <span class="px-2 py-1 rounded-full text-xs font-medium 
-                            {item.status === 'need_to_purchase' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">
-                            {item.status === 'need_to_purchase' ? 'Need to purchase locally' : 'Available'}
-                          </span>
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              {/if} -->
   
               {#if dc.isSaved}
                 <button 
@@ -4127,7 +4105,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
   <div class="bg-gradient-to-r from-blue-500 to-indigo-500 p-4">
     <h4 class="text-2xl font-bold text-white text-center">Items to Procure</h4>
   </div>
-  {#if notAvailableItems.length > 0}
+  {#if notAvailableItems.length > 0 || (lineItemsWithStatus && lineItemsWithStatus.some(item => item.serialNo))}
     <div class="overflow-x-auto">
       <table class="w-full">
         <thead class="bg-gray-100">
@@ -4138,7 +4116,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
           </tr>
         </thead>
         <tbody>
-          {#each notAvailableItems as item, index (item.Itemid)}
+          {#each (notAvailableItems.length > 0 ? notAvailableItems : lineItemsWithStatus.filter(item => item.serialNo)) as item, index (item.Itemid)}
             <tr class="hover:bg-gray-50 transition-colors duration-200">
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
@@ -4149,7 +4127,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                 <label class="inline-flex items-center">
                 <input 
                   type="checkbox" 
-                  bind:checked={item.isAvailable} 
+                  bind:checked={item.isAvailable}   
                   on:change={() => handleAvailabilityChange(item.Itemid, 'available')}
                   disabled={!isEditing}
                   class="form-checkbox h-5 w-5 text-blue-600 transition duration-150 ease-in-out"
@@ -4176,28 +4154,34 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                   <div class="bg-white p-4 rounded-lg shadow-sm">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div class="space-y-2">
-                      <label for="serial-no-{item.Itemid}" class="block text-sm font-medium text-gray-700">Serial No.: *</label>
+                      <label for="serial-no-{item.Itemid}" class="block text-sm font-medium text-gray-700">Serial No.:* </label>
                       <input 
                         type="text" 
                         id="serial-no-{item.Itemid}" 
-                        bind:value={notAvailableItems[index].serialNo} 
+                        value={notAvailableItems.length > 0 
+                          ? notAvailableItems[index]?.serialNo 
+                          : lineItemsWithStatus.filter(item => item.serialNo)[index]?.serialNo || ""} 
+                        on:input={(event) => updateSerialNo(event, index)} 
                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter serial number"
                         required
                       >
                     </div>
                     <div class="space-y-2">
-                      <label for="invoice-no-{item.Itemid}" class="block text-sm font-medium text-gray-700">Invoice No.: *</label>
+                      <label for="invoice-no-{item.Itemid}" class="block text-sm font-medium text-gray-700">Invoice No.: </label>
                       <input 
                         type="text" 
                         id="invoice-no-{item.Itemid}" 
-                        bind:value={notAvailableItems[index].invoiceNo} 
+                        value={notAvailableItems.length > 0 
+                          ? notAvailableItems[index]?.invoiceNo 
+                          : lineItemsWithStatus.filter(item => item.serialNo)[index]?.invoiceNo || ""} 
+                        on:input={(event) => updateInvoiceNo(event, index)} 
                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter invoice number"
                         required
                       >
                     </div>
-                    <div class="space-y-2">
+                    <!-- <div class="space-y-2">
                       <label for="attachment-{item.Itemid}" class="block text-sm font-medium text-gray-700">Attachment:</label>
                       <div class="flex items-center space-x-2">
                         <label for="attachment-{item.Itemid}" class="flex-grow cursor-pointer bg-white px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
@@ -4227,7 +4211,7 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                     {#if notAvailableItems[index].invoiceattachment}
                           <p class="text-sm text-gray-500 truncate">{notAvailableItems[index].invoiceattachment.name}</p>
                       {/if}
-                    </div>
+                    </div> -->
                   </div>
                   </div>
                 </td>
@@ -5588,121 +5572,121 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
     </div>
   {/if}
 {:else if moveStage === stageData.findIndex(stage => stage.title === "Stage 6. Completion")}
-  <div class="container mx-auto px-4 py-8 max-w-4xl">
-    <div class="bg-white shadow-2xl rounded-2xl overflow-hidden">
-      <!-- Header Section -->
-      <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-8 text-center">
-        <div class="flex justify-center mb-4">
-          <div class="bg-white rounded-full p-4 shadow-lg">
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              class="h-16 w-16 text-green-500 animate-bounce" 
-              viewBox="0 0 20 20" 
-              fill="currentColor"
-            >
-              <path 
-                fill-rule="evenodd" 
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                clip-rule="evenodd" 
-              />
-            </svg>
-          </div>
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+  <div class="bg-white shadow-2xl rounded-2xl overflow-hidden">
+    <!-- Header Section -->
+    <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-8 text-center">
+      <div class="flex justify-center mb-4">
+        <div class="bg-white rounded-full p-4 shadow-lg">
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            class="h-16 w-16 text-green-500 animate-bounce" 
+            viewBox="0 0 20 20" 
+            fill="currentColor"
+          >
+            <path 
+              fill-rule="evenodd" 
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
+              clip-rule="evenodd" 
+            />
+          </svg>
         </div>
-        <h2 class="text-4xl font-bold text-white mb-2">Order Completed!</h2>
-        <p class="text-green-100 text-lg">The sales order has been successfully processed</p>
       </div>
+      <h2 class="text-4xl font-bold text-white mb-2">Order Completed!</h2>
+      <p class="text-green-100 text-lg">The sales order has been successfully processed</p>
+    </div>
 
-      <!-- Content Section -->
-      <div class="p-8">
-        {#if Stage0Data}
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <!-- Sales Order Details Card -->
-            <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
-              <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 class="text-xl font-semibold text-gray-800">Sales Order Details</h3>
-              </div>
-              <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">SO Number:</span>
-                  <span class="font-medium text-gray-800">{Stage0Data.SONumber}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Client Name:</span>
-                  <span class="font-medium text-gray-800">{Stage0Data.clientName}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Total Amount:</span>
-                  <span class="font-medium text-green-600">₹{Stage0Data.Total?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Order Summary Card -->
-            <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
-              <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <h3 class="text-xl font-semibold text-gray-800">Order Summary</h3>
-              </div>
-              <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Total Line Items:</span>
-                  <span class="font-medium text-gray-800">{lineItemsWithStatus?.length || 0}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Completed On:</span>
-                  <span class="font-medium text-gray-800">{new Date().toLocaleDateString('en-IN', { 
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        {/if}
-
-        {#if Stage3Data}
-          <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300 mb-8">
+    <!-- Content Section -->
+    <div class="p-8">
+      {#if Stage0Data}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <!-- Sales Order Details Card -->
+          <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
             <div class="flex items-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 class="text-xl font-semibold text-gray-800">Service/Installation Details</h3>
+              <h3 class="text-xl font-semibold text-gray-800">Sales Order Details</h3>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div class="flex justify-between md:block">
-                <span class="text-gray-600">Engineer Name:</span>
-                <span class="font-medium text-gray-800">{Stage3Data.engName}</span>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">SO Number:</span>
+                <span class="font-medium text-gray-800">{Stage0Data.SONumber}</span>
               </div>
-              <div class="flex justify-between md:block">
-                <span class="text-gray-600">Schedule Date:</span>
-                <span class="font-medium text-gray-800">{new Date(Stage3Data.ScheduleDate).toLocaleDateString('en-IN', {
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Client Name:</span>
+                <span class="font-medium text-gray-800">{Stage0Data.clientName}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Total Amount:</span>
+                <span class="font-medium text-green-600">₹{Stage0Data.Total?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Summary Card -->
+          <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <h3 class="text-xl font-semibold text-gray-800">Order Summary</h3>
+            </div>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Total Line Items:</span>
+                <span class="font-medium text-gray-800">{lineItemsWithStatus?.length || 0}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Completed On:</span>
+                <span class="font-medium text-gray-800">{new Date().toLocaleDateString('en-IN', { 
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
                 })}</span>
               </div>
-              <div class="flex justify-between md:block">
-                <span class="text-gray-600">Type:</span>
-                <span class="font-medium text-gray-800 capitalize">{Stage3Data.activeTab}</span>
-              </div>
             </div>
           </div>
-        {/if}
-
-        <!-- Footer Message -->
-        <div class="text-center">
-          <p class="text-gray-600 text-lg mb-6">All tasks have been completed successfully!</p>
         </div>
+      {/if}
+
+      {#if Stage3Data}
+        <div class="bg-gray-50 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300 mb-8">
+          <div class="flex items-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-800">Service/Installation Details</h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex justify-between md:block">
+              <span class="text-gray-600">Engineer Name:</span>
+              <span class="font-medium text-gray-800">{Stage3Data.engName}</span>
+            </div>
+            <div class="flex justify-between md:block">
+              <span class="text-gray-600">Schedule Date:</span>
+              <span class="font-medium text-gray-800">{new Date(Stage3Data.ScheduleDate).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              })}</span>
+            </div>
+            <div class="flex justify-between md:block">
+              <span class="text-gray-600">Type:</span>
+              <span class="font-medium text-gray-800 capitalize">{Stage3Data.activeTab}</span>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Footer Message -->
+      <div class="text-center">
+        <p class="text-gray-600 text-lg mb-6">All tasks have been completed successfully!</p>
       </div>
-    </div>
+          </div>
+        </div>
   </div>
-{/if}
+  {/if}
  
 
         {#if showConfirmationPopup}
