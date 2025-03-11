@@ -3,14 +3,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/database';
 
-async function getZohoToken() {
-  // Implement your token fetching logic
-  // You might want to reuse your existing token logic from salesOrder/[id]/+page.server.ts
-  const tokenResponse = await fetch('/api/zohoAuthToken');
-  const { token } = await tokenResponse.json();
-  return token;
-}
-
+// Using the fetch from the request event instead of directly calling fetch
 export const POST: RequestHandler = async ({ request, fetch }) => {
   try {
     const { stage, start, end, orderStatus, pmNameFilter } = await request.json();
@@ -65,8 +58,23 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
       };
     });
     
-    // Fetch reference numbers from Zoho API
-    const token = await getZohoToken();
+    // Use a shared function to get the token
+    let token;
+    try {
+      // Use the fetch provided by the event handler, which works with relative URLs
+      const tokenResponse = await fetch('/api/zohoAuthToken');
+      if (!tokenResponse.ok) {
+        throw new Error(`Token fetch failed with status: ${tokenResponse.status}`);
+      }
+      const tokenData = await tokenResponse.json();
+      token = tokenData.token;
+    } catch (error) {
+      console.error('Error fetching Zoho token:', error);
+      // Return processed orders without reference numbers if token fetch fails
+      return json({ orders: processedOrders });
+    }
+    
+    // Fetch reference numbers from Zoho API (sequentially to avoid rate limits)
     for (const order of processedOrders) {
       try {
         const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${order.SOId}?organization_id=60005679410`, {
