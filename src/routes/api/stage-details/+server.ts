@@ -54,7 +54,7 @@ async function getZohoToken(): Promise<string> {
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { stage, start, end, orderStatus, pmNameFilter } = await request.json();
+    const { stage, start, end, orderStatus, pmNameFilter, skipReferenceNumbers  } = await request.json();
     const dateFilter = {};
     if (start && end) {
       dateFilter.createdAt = {
@@ -107,40 +107,33 @@ export const POST: RequestHandler = async ({ request }) => {
       };
     });
     
-    // Get Zoho token
-    let token;
-    try {
-      token = await getZohoToken();
-    } catch (error) {
-      console.error('Error getting Zoho token:', error);
-      // Return processed orders without reference numbers
-      return json({ orders: processedOrders });
-    }
-    
-    const limit = pLimit(5); // Process 5 requests at a time
-    const promises = processedOrders.map(order => {
-      return limit(async () => {
-        try {
-          const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${order.SOId}?organization_id=60005679410`, {
-            headers: {
-              'Authorization': `Zoho-oauthtoken ${token}`
+ if (!skipReferenceNumbers) {
+      // Get Zoho token
+      let token;
+      try {
+        token = await getZohoToken();
+        
+        // Fetch reference numbers (your existing code)
+        for (const order of processedOrders) {
+          try {
+            const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${order.SOId}?organization_id=60005679410`, {
+              headers: {
+                'Authorization': `Zoho-oauthtoken ${token}`
+              }
+            });
+            
+            if (zohoResponse.ok) {
+              const zohoData = await zohoResponse.json();
+              order.referenceNumber = zohoData.salesorder.reference_number || '';
             }
-          });
-          
-          if (zohoResponse.ok) {
-            const zohoData = await zohoResponse.json();
-            order.referenceNumber = zohoData.salesorder.reference_number || '';
-          } else {
-            console.error(`Failed to fetch reference number for ${order.SONumber}: ${zohoResponse.status}`);
+          } catch (error) {
+            console.error(`Error fetching reference number for ${order.SONumber}:`, error);
           }
-        } catch (error) {
-          console.error(`Error fetching reference number for ${order.SONumber}:`, error);
         }
-        return order;
-      });
-    });
-    
-    await Promise.all(promises);
+      } catch (error) {
+        console.error('Error getting Zoho token:', error);
+      }
+    }
     
     return json({ orders: processedOrders });
   } catch (error) {
