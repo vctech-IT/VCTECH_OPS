@@ -3,8 +3,55 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/database';
 
-// Using the fetch from the request event instead of directly calling fetch
-export const POST: RequestHandler = async ({ request, fetch }) => {
+// Zoho credentials
+const REFRESH_TOKEN = '1000.b94e5345a93e9e0f672a31a27a2fd390.0ba27ca3d43ba0863e11c303b6a8c16f';
+const CLIENT_ID = '1000.KXTGP1GAGIDX12Q294C6OIMVR60VMX';
+const CLIENT_SECRET = 'bb44b083c2b29eb4eefd1a605266a866fcd5f491fb';
+const REDIRECT_URI = 'https://www.google.com/';
+
+// In-memory token cache (note: this will reset on server restarts)
+let authToken: string | null = null;
+let tokenExpiry = 0;
+
+interface TokenResponse {
+    access_token: string;
+    expires_in: number;
+}
+
+// Function to get a fresh Zoho token
+async function getZohoToken(): Promise<string> {
+    // If token is expired or will expire in the next 5 minutes, refresh it
+    if (!authToken || Date.now() > tokenExpiry - 300000) {
+        try {
+            const response = await fetch('https://accounts.zoho.in/oauth/v2/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    refresh_token: REFRESH_TOKEN,
+                    client_id: CLIENT_ID,
+                    client_secret: CLIENT_SECRET,
+                    redirect_uri: REDIRECT_URI,
+                    grant_type: 'refresh_token'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data: TokenResponse = await response.json();
+            authToken = data.access_token;
+            tokenExpiry = Date.now() + (data.expires_in * 1000);
+        } catch (error) {
+            console.error('Error refreshing Zoho token:', error);
+            throw error;
+        }
+    }
+    
+    return authToken!;
+}
+
+export const POST: RequestHandler = async ({ request }) => {
   try {
     const { stage, start, end, orderStatus, pmNameFilter } = await request.json();
     const dateFilter = {};
@@ -54,27 +101,22 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
         ...order,
         ageInHours,
         lastUpdated,
-        isOverdue: ageInHours > 48 // Assuming orders are overdue after 48 hours, adjust as needed
+        isOverdue: ageInHours > 48, 
+        referenceNumber: '' // Initialize with empty string
       };
     });
     
-    // Use a shared function to get the token
+    // Get Zoho token
     let token;
     try {
-      // Use the fetch provided by the event handler, which works with relative URLs
-      const tokenResponse = await fetch('/api/zohoAuthToken');
-      if (!tokenResponse.ok) {
-        throw new Error(`Token fetch failed with status: ${tokenResponse.status}`);
-      }
-      const tokenData = await tokenResponse.json();
-      token = tokenData.token;
+      token = await getZohoToken();
     } catch (error) {
-      console.error('Error fetching Zoho token:', error);
-      // Return processed orders without reference numbers if token fetch fails
+      console.error('Error getting Zoho token:', error);
+      // Return processed orders without reference numbers
       return json({ orders: processedOrders });
     }
     
-    // Fetch reference numbers from Zoho API (sequentially to avoid rate limits)
+    // Fetch reference numbers from Zoho API (one at a time to avoid rate limits)
     for (const order of processedOrders) {
       try {
         const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${order.SOId}?organization_id=60005679410`, {
@@ -88,11 +130,9 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
           order.referenceNumber = zohoData.salesorder.reference_number || '';
         } else {
           console.error(`Failed to fetch reference number for ${order.SONumber}: ${zohoResponse.status}`);
-          order.referenceNumber = '';
         }
       } catch (error) {
         console.error(`Error fetching reference number for ${order.SONumber}:`, error);
-        order.referenceNumber = '';
       }
     }
     
