@@ -69,6 +69,7 @@ interface OrderDetail {
   clientName: string;
   SOCategory: string;
   SOAmount: number;
+  referenceNumber?: string;
 }
 
 let searchTerm = '';
@@ -475,12 +476,13 @@ function processModalData(orders: any[], title: string, totalOrders: number): Mo
     byCategory[order.SOCategory].soNumbers.push(order.SONumber);
   }
 
-    const orderDetails: OrderDetail[] = orders.map(order => ({
+  const orderDetails: OrderDetail[] = orders.map(order => ({
     SONumber: order.SONumber,
     SOId: order.SOId,
     clientName: order.clientName,
     SOCategory: order.SOCategory,
-	SOAmount: order.Total,
+    SOAmount: order.Total,
+    referenceNumber: order.referenceNumber || ''
   }));
 
   return {
@@ -867,39 +869,40 @@ onDestroy(() => {
               </select>
             </div>
             <div class="overflow-hidden border border-gray-200 shadow sm:rounded-lg">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    {#each ['SONumber', 'Client Name', 'Category', 'Amount'] as column}
-                      <th 
-                        scope="col" 
-                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        on:click={() => toggleSort(column === 'Client Name' ? 'clientName' : column)}
-                      >
-                        <div class="flex items-center space-x-1">
-                          <span>{column}</span>
-                          <div class="flex flex-col">
-                            <ChevronUp size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column) && sortDirection === 'asc' ? 'text-blue-500' : 'text-gray-300'} />
-                            <ChevronDown size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column) && sortDirection === 'desc' ? 'text-blue-500' : 'text-gray-300'} />
-                          </div>
-                        </div>
-                      </th>
-                    {/each}
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  {#each filteredAndSortedOrders as order}
-                    <tr class="hover:bg-gray-50 transition-colors duration-150">
-                      <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => handleSOClick(order.SOId)}>
-                        {order.SONumber}
-                      </td>
-                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
-                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
-		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
+<table class="min-w-full divide-y divide-gray-200">
+  <thead class="bg-gray-50">
+    <tr>
+      {#each ['SONumber', 'Client Name', 'Category', 'Amount', 'Reference Number'] as column}
+        <th
+          scope="col"
+          class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+          on:click={() => toggleSort(column === 'Client Name' ? 'clientName' : column === 'Reference Number' ? 'referenceNumber' : column)}
+        >
+          <div class="flex items-center space-x-1">
+            <span>{column}</span>
+            <div class="flex flex-col">
+              <ChevronUp size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column === 'Reference Number' ? 'referenceNumber' : column) && sortDirection === 'asc' ? 'text-blue-500' : 'text-gray-300'} />
+              <ChevronDown size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column === 'Reference Number' ? 'referenceNumber' : column) && sortDirection === 'desc' ? 'text-blue-500' : 'text-gray-300'} />
+            </div>
+          </div>
+        </th>
+      {/each}
+    </tr>
+  </thead>
+  <tbody class="bg-white divide-y divide-gray-200">
+    {#each filteredAndSortedOrders as order}
+      <tr class="hover:bg-gray-50 transition-colors duration-150">
+        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => handleSOClick(order.SOId)}>
+          {order.SONumber}
+        </td>
+        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
+        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
+        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
+        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.referenceNumber || '-'}</td>
+      </tr>
+    {/each}
+  </tbody>
+</table>
             </div>
           {/if}
           </div>
