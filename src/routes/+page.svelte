@@ -63,6 +63,8 @@ let pmNames: string[] = [];
 let selectedPM: string = 'all';
 let isLoadingKPIData = false;
 
+let isLoadingReferences = false;
+
 interface OrderDetail {
   SONumber: string;
   SOId: string;
@@ -412,6 +414,8 @@ function handleDateRangeChange(event: any) {
   fetchDashboardData();
 }
 
+
+
 async function handleCardClick(event: any) {
   const { title, value } = event.detail;
   isLoadingKPIData = true;
@@ -419,17 +423,50 @@ async function handleCardClick(event: any) {
   try {
     const stage = parseInt(title.split(' ')[1]); 
     if (!isNaN(stage)) {
+      // First load basic data without reference numbers for immediate display
       const response = await fetch('/api/stage-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage, ...dateRange, orderStatus, pmNameFilter: selectedPM })
+        body: JSON.stringify({ 
+          stage, 
+          ...dateRange, 
+          orderStatus, 
+          pmNameFilter: selectedPM,
+          skipReferenceNumbers: true // Skip reference numbers initially
+        })
       });
+      
       const data = await response.json();
       modalContent = processModalData(data.orders, getStageTitle(stage), value);
+      showModal = true;
+      
+      // Then load reference numbers in the background if we have many orders
+      if (data.orders.length > 20) {
+        isLoadingReferences = true;
+        
+        // Load full data with reference numbers
+        const refResponse = await fetch('/api/stage-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            stage, 
+            ...dateRange, 
+            orderStatus, 
+            pmNameFilter: selectedPM,
+            skipReferenceNumbers: false // Get reference numbers this time
+          })
+        });
+        
+        const refData = await refResponse.json();
+        modalContent = processModalData(refData.orders, getStageTitle(stage), value);
+        isLoadingReferences = false;
+      }
     } else if (title === "Total Installations") {
       modalContent = processInstallationData(installationDetails, value);
+      showModal = true;
     } else if (title === "Total Services") {
       modalContent = processServiceData(serviceDetails, value);
+      showModal = true;
     } else {
       modalContent = { 
         title, 
@@ -440,8 +477,8 @@ async function handleCardClick(event: any) {
         agingData: agingData.details,
         orderDetails: []
       };
+      showModal = true;
     }
-    showModal = true;
   } catch (error) {
     console.error('Error loading data:', error);
   } finally {
