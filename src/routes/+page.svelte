@@ -423,7 +423,7 @@ async function handleCardClick(event: any) {
   try {
     const stage = parseInt(title.split(' ')[1]); 
     if (!isNaN(stage)) {
-      // First load basic data without reference numbers for immediate display
+      // Initially, only fetch the basic order data without attempting to get reference numbers
       const response = await fetch('/api/stage-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -432,7 +432,7 @@ async function handleCardClick(event: any) {
           ...dateRange, 
           orderStatus, 
           pmNameFilter: selectedPM,
-          skipReferenceNumbers: true // Skip reference numbers initially
+          skipReferenceNumbers: true // Skip reference numbers entirely for first load
         })
       });
       
@@ -440,33 +440,55 @@ async function handleCardClick(event: any) {
       modalContent = processModalData(data.orders, getStageTitle(stage), value);
       showModal = true;
       
-      // Then load reference numbers in the background if we have many orders
-      if (data.orders.length > 20) {
+      // Set loading to false immediately after showing the modal with basic data
+      isLoadingKPIData = false;
+      
+      // Then load reference numbers asynchronously without blocking the UI
+      if (data.orders.length > 0) {
         isLoadingReferences = true;
         
-        // Load full data with reference numbers
-        const refResponse = await fetch('/api/stage-details', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            stage, 
-            ...dateRange, 
-            orderStatus, 
-            pmNameFilter: selectedPM,
-            skipReferenceNumbers: false // Get reference numbers this time
-          })
-        });
+        // Load reference numbers in batches to avoid timeout
+        const batchSize = 20;
+        const allOrders = [...data.orders];
+        const orderDetailsWithReferences = [...modalContent.orderDetails];
         
-        const refData = await refResponse.json();
-        modalContent = processModalData(refData.orders, getStageTitle(stage), value);
+        for (let i = 0; i < allOrders.length; i += batchSize) {
+          const batchOrderIds = allOrders.slice(i, i + batchSize).map(o => o.SOId);
+          
+          // Create a new endpoint that only fetches reference numbers for specific orders
+          const refResponse = await fetch('/api/reference-numbers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderIds: batchOrderIds })
+          });
+          
+          const batchData = await refResponse.json();
+          
+          // Update our order details with the new reference numbers
+          batchData.references.forEach(ref => {
+            const index = orderDetailsWithReferences.findIndex(o => o.SOId === ref.SOId);
+            if (index !== -1) {
+              orderDetailsWithReferences[index].referenceNumber = ref.referenceNumber;
+            }
+          });
+          
+          // Update the UI after each batch
+          modalContent = {
+            ...modalContent,
+            orderDetails: orderDetailsWithReferences
+          };
+        }
+        
         isLoadingReferences = false;
       }
     } else if (title === "Total Installations") {
       modalContent = processInstallationData(installationDetails, value);
       showModal = true;
+      isLoadingKPIData = false;
     } else if (title === "Total Services") {
       modalContent = processServiceData(serviceDetails, value);
       showModal = true;
+      isLoadingKPIData = false;
     } else {
       modalContent = { 
         title, 
@@ -478,14 +500,13 @@ async function handleCardClick(event: any) {
         orderDetails: []
       };
       showModal = true;
+      isLoadingKPIData = false;
     }
   } catch (error) {
     console.error('Error loading data:', error);
-  } finally {
     isLoadingKPIData = false;
   }
 }
-
 function processModalData(orders: any[], title: string, totalOrders: number): ModalContent {
   let totalSum = 0;
   let byClient: { [key: string]: { orders: number; sum: number; soNumbers: string[] } } = {};
