@@ -2,6 +2,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/database';
+import pLimit from 'p-limit';
 
 // Zoho credentials
 const REFRESH_TOKEN = '1000.b94e5345a93e9e0f672a31a27a2fd390.0ba27ca3d43ba0863e11c303b6a8c16f';
@@ -116,25 +117,30 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ orders: processedOrders });
     }
     
-    // Fetch reference numbers from Zoho API (one at a time to avoid rate limits)
-    for (const order of processedOrders) {
-      try {
-        const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${order.SOId}?organization_id=60005679410`, {
-          headers: {
-            'Authorization': `Zoho-oauthtoken ${token}`
+    const limit = pLimit(5); // Process 5 requests at a time
+    const promises = processedOrders.map(order => {
+      return limit(async () => {
+        try {
+          const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${order.SOId}?organization_id=60005679410`, {
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${token}`
+            }
+          });
+          
+          if (zohoResponse.ok) {
+            const zohoData = await zohoResponse.json();
+            order.referenceNumber = zohoData.salesorder.reference_number || '';
+          } else {
+            console.error(`Failed to fetch reference number for ${order.SONumber}: ${zohoResponse.status}`);
           }
-        });
-        
-        if (zohoResponse.ok) {
-          const zohoData = await zohoResponse.json();
-          order.referenceNumber = zohoData.salesorder.reference_number || '';
-        } else {
-          console.error(`Failed to fetch reference number for ${order.SONumber}: ${zohoResponse.status}`);
+        } catch (error) {
+          console.error(`Error fetching reference number for ${order.SONumber}:`, error);
         }
-      } catch (error) {
-        console.error(`Error fetching reference number for ${order.SONumber}:`, error);
-      }
-    }
+        return order;
+      });
+    });
+    
+    await Promise.all(promises);
     
     return json({ orders: processedOrders });
   } catch (error) {
