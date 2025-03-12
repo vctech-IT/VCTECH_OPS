@@ -1106,7 +1106,6 @@ onDestroy(() => {
   {/if}
 </div>
 </div>
-            </div>
           {/if}
           </div>
         </div>
