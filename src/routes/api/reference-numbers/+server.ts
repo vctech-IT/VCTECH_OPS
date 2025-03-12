@@ -50,40 +50,67 @@ async function getZohoToken(): Promise<string> {
     return authToken!;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
-  try {
-    const { orderIds } = await request.json();
+// Simple implementation of concurrency limiting
+async function processBatch(orderIds: string[], token: string, concurrencyLimit = 5) {
+    const results: any[] = [];
+    const pending: Promise<void>[] = [];
     
-    // Get Zoho token using your existing function
-    const token = await getZohoToken();
-    
-    // Process batches of orders in parallel with a limit
-    const promises = orderIds.map(async (orderId) => {
-      try {
-        const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${orderId}?organization_id=60005679410`, {
-          headers: {
-            'Authorization': `Zoho-oauthtoken ${token}`
-          }
-        });
-        
-        if (zohoResponse.ok) {
-          const zohoData = await zohoResponse.json();
-          return {
-            SOId: orderId,
-            referenceNumber: zohoData.salesorder.reference_number || ''
-          };
+    for (const orderId of orderIds) {
+        // Remove a finished promise from the pool
+        if (pending.length >= concurrencyLimit) {
+            await Promise.race(pending);
         }
-      } catch (error) {
-        console.error(`Error fetching reference number for ${orderId}:`, error);
-      }
-      return { SOId: orderId, referenceNumber: '' };
-    });
+        
+        // Create a new promise and add it to the pool
+        const promise = (async () => {
+            try {
+                const zohoResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${orderId}?organization_id=60005679410`, {
+                    headers: {
+                        'Authorization': `Zoho-oauthtoken ${token}`
+                    }
+                });
+                
+                if (zohoResponse.ok) {
+                    const zohoData = await zohoResponse.json();
+                    results.push({
+                        SOId: orderId,
+                        referenceNumber: zohoData.salesorder.reference_number || ''
+                    });
+                } else {
+                    results.push({ SOId: orderId, referenceNumber: '' });
+                }
+            } catch (error) {
+                console.error(`Error fetching reference number for ${orderId}:`, error);
+                results.push({ SOId: orderId, referenceNumber: '' });
+            }
+        })();
+        
+        // Add the promise to the pool
+        pending.push(promise);
+    }
     
-    const references = await Promise.all(promises);
-    
-    return json({ references });
-  } catch (error) {
-    console.error('Error fetching reference numbers:', error);
-    return json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // Wait for all pending promises to complete
+    await Promise.all(pending);
+    return results;
+}
+
+export const POST: RequestHandler = async ({ request }) => {
+    try {
+        const { orderIds } = await request.json();
+        
+        if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+            return json({ references: [] });
+        }
+        
+        // Get Zoho token
+        const token = await getZohoToken();
+        
+        // Process batches of orders with concurrency limit
+        const references = await processBatch(orderIds, token, 5);
+        
+        return json({ references });
+    } catch (error) {
+        console.error('Error fetching reference numbers:', error);
+        return json({ error: 'Internal Server Error' }, { status: 500 });
+    }
 };
