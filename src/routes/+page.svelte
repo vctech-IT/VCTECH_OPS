@@ -1066,7 +1066,7 @@ onDestroy(() => {
     </tr>
   </thead>
   <tbody class="bg-white divide-y divide-gray-200">
-    {#each visibleOrders as order}
+    {#each filteredAndSortedOrders as order}
       <tr class="hover:bg-gray-50 transition-colors duration-150">
         <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => handleSOClick(order.SOId)}>
           {order.SONumber}
