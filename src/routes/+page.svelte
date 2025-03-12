@@ -62,6 +62,11 @@ let selectedCategory: string | null = null;
 let pmNames: string[] = [];
 let selectedPM: string = 'all';
 let isLoadingKPIData = false;
+let allOrders = []; 
+let visibleOrders = []; 
+let pageSize = 20; 
+let currentPage = 0;
+let isLoadingMoreOrders = false;
 
 let isLoadingReferences = false;
 
@@ -414,6 +419,106 @@ function handleDateRangeChange(event: any) {
   fetchDashboardData();
 }
 
+// Initialize cache object in localStorage if it doesn't exist
+function initializeCache() {
+  if (!localStorage.getItem('referenceNumberCache')) {
+    localStorage.setItem('referenceNumberCache', JSON.stringify({}));
+  }
+}
+
+// Function to save a reference number to cache
+function cacheReferenceNumber(soId, referenceNumber) {
+  const cache = JSON.parse(localStorage.getItem('referenceNumberCache') || '{}');
+  cache[soId] = referenceNumber;
+  localStorage.setItem('referenceNumberCache', JSON.stringify(cache));
+}
+
+// Function to get reference number from cache
+function getCachedReferenceNumber(soId) {
+  const cache = JSON.parse(localStorage.getItem('referenceNumberCache') || '{}');
+  return cache[soId] || null;
+}
+
+// Function to handle table scrolling and load more orders as needed
+function handleTableScroll(event) {
+  const container = event.target;
+  const scrollPosition = container.scrollTop + container.clientHeight;
+  const scrollHeight = container.scrollHeight;
+  
+  // If we're close to the bottom and not already loading more
+  if (scrollHeight - scrollPosition < 200 && !isLoadingMoreOrders) {
+    loadMoreOrders();
+  }
+}
+
+// Function to load the next batch of orders
+async function loadMoreOrders() {
+  if (currentPage * pageSize >= allOrders.length) return;
+  
+  isLoadingMoreOrders = true;
+  
+  // Get the next batch of orders
+  const nextBatch = allOrders.slice(
+    currentPage * pageSize,
+    (currentPage + 1) * pageSize
+  );
+  
+  // First show orders without reference numbers
+  const ordersWithCachedRefs = nextBatch.map(order => {
+    // Try to get reference number from cache
+    const cachedRef = getCachedReferenceNumber(order.SOId);
+    return {
+      ...order,
+      referenceNumber: cachedRef || ''
+    };
+  });
+  
+  // Add to visible orders
+  visibleOrders = [...visibleOrders, ...ordersWithCachedRefs];
+  currentPage++;
+  
+  // Then fetch reference numbers only for orders that don't have cached values
+  const ordersNeedingRefs = nextBatch.filter(order => !getCachedReferenceNumber(order.SOId));
+  
+  if (ordersNeedingRefs.length > 0) {
+    const orderIds = ordersNeedingRefs.map(o => o.SOId);
+    
+    try {
+      const refResponse = await fetch('/api/reference-numbers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds })
+      });
+      
+      const batchData = await refResponse.json();
+      
+      // Update visible orders with the new reference numbers
+      batchData.references.forEach(ref => {
+        // Update in the visible orders array
+        const orderIndex = visibleOrders.findIndex(o => o.SOId === ref.SOId);
+        if (orderIndex !== -1) {
+          visibleOrders[orderIndex].referenceNumber = ref.referenceNumber;
+          // Force svelte to update
+          visibleOrders = [...visibleOrders];
+        }
+        
+        // Also update in the allOrders array
+        const allOrderIndex = allOrders.findIndex(o => o.SOId === ref.SOId);
+        if (allOrderIndex !== -1) {
+          allOrders[allOrderIndex].referenceNumber = ref.referenceNumber;
+        }
+        
+        // Cache the reference number
+        cacheReferenceNumber(ref.SOId, ref.referenceNumber);
+      });
+    } catch (error) {
+      console.error('Error fetching reference numbers:', error);
+    }
+  }
+  
+  isLoadingMoreOrders = false;
+}
+
 
 
 async function handleCardClick(event: any) {
@@ -423,6 +528,14 @@ async function handleCardClick(event: any) {
   try {
     const stage = parseInt(title.split(' ')[1]); 
     if (!isNaN(stage)) {
+
+      // Initialize cache
+      initializeCache();
+      
+      // Reset pagination variables
+      currentPage = 0;
+      visibleOrders = [];
+
       // Initially, only fetch the basic order data without attempting to get reference numbers
       const response = await fetch('/api/stage-details', {
         method: 'POST',
@@ -432,13 +545,17 @@ async function handleCardClick(event: any) {
           ...dateRange, 
           orderStatus, 
           pmNameFilter: selectedPM,
-          skipReferenceNumbers: true // Skip reference numbers entirely for first load
+          skipReferenceNumbers: true 
         })
       });
       
       const data = await response.json();
+      allOrders = data.orders;
       modalContent = processModalData(data.orders, getStageTitle(stage), value);
       showModal = true;
+
+      // Load the first page of orders
+      loadMoreOrders();
       
       // Set loading to false immediately after showing the modal with basic data
       isLoadingKPIData = false;
@@ -927,8 +1044,9 @@ onDestroy(() => {
               </select>
             </div>
             <div class="overflow-hidden border border-gray-200 shadow sm:rounded-lg">
-<table class="min-w-full divide-y divide-gray-200">
-  <thead class="bg-gray-50">
+<div class="h-[500px] overflow-auto" id="orders-table-container" on:scroll={handleTableScroll}>
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50 sticky top-0 z-10">
     <tr>
       {#each ['SONumber', 'Client Name', 'Category', 'Amount', 'Reference Number'] as column}
         <th
@@ -948,7 +1066,7 @@ onDestroy(() => {
     </tr>
   </thead>
   <tbody class="bg-white divide-y divide-gray-200">
-    {#each filteredAndSortedOrders as order}
+    {#each visibleOrders as order}
       <tr class="hover:bg-gray-50 transition-colors duration-150">
         <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => handleSOClick(order.SOId)}>
           {order.SONumber}
@@ -975,6 +1093,19 @@ onDestroy(() => {
     {/each}
   </tbody>
 </table>
+  {#if isLoadingMoreOrders}
+    <div class="flex justify-center py-4">
+      <span class="inline-flex items-center">
+        <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Loading more...
+      </span>
+    </div>
+  {/if}
+</div>
+</div>
             </div>
           {/if}
           </div>
