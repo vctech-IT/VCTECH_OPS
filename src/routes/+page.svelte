@@ -36,6 +36,7 @@ interface DashboardState {
   sortDirection: 'asc' | 'desc';
   filterCategory: string;
   modalContent: ModalContent;
+  invoiceStatus: string;
   dateRange: { start: string | null; end: string | null };
 }
 
@@ -62,13 +63,8 @@ let selectedCategory: string | null = null;
 let pmNames: string[] = [];
 let selectedPM: string = 'all';
 let isLoadingKPIData = false;
-let allOrders = []; 
-let visibleOrders = []; 
-let pageSize = 20; 
-let currentPage = 0;
-let isLoadingMoreOrders = false;
-
-let isLoadingReferences = false;
+let invoiceStatus = 'all';
+let invoiceStatuses: string[] = [];
 
 interface OrderDetail {
   SONumber: string;
@@ -76,7 +72,7 @@ interface OrderDetail {
   clientName: string;
   SOCategory: string;
   SOAmount: number;
-  referenceNumber?: string;
+  referenceNumber: string;
 }
 
 let searchTerm = '';
@@ -196,6 +192,7 @@ function loadState() {
       activeTab = state.activeTab;
       orderStatus = state.orderStatus;
       selectedPM = state.selectedPM;
+      invoiceStatus = state.invoiceStatus || 'all';
       showModal = state.showModal;
       selectedClient = state.selectedClient;
       selectedCategory = state.selectedCategory;
@@ -218,6 +215,11 @@ function loadState() {
     // If there's an error, clear the corrupted state
     localStorage.removeItem('dashboardState');
   }
+}
+
+function handleInvoiceStatusChange() {
+  saveState();
+  fetchDashboardData();
 }
 
 function saveState() {
@@ -285,6 +287,7 @@ async function fetchDashboardData() {
   conversionRate = data.conversionRate;
   agingData = data.agingData;
   pmNames = data.pmNames;
+  invoiceStatuses = data.invoiceStatuses || [];
   updateChart();
 }
 
@@ -419,108 +422,6 @@ function handleDateRangeChange(event: any) {
   fetchDashboardData();
 }
 
-// Initialize cache object in localStorage if it doesn't exist
-function initializeCache() {
-  if (!localStorage.getItem('referenceNumberCache')) {
-    localStorage.setItem('referenceNumberCache', JSON.stringify({}));
-  }
-}
-
-// Function to save a reference number to cache
-function cacheReferenceNumber(soId, referenceNumber) {
-  const cache = JSON.parse(localStorage.getItem('referenceNumberCache') || '{}');
-  cache[soId] = referenceNumber;
-  localStorage.setItem('referenceNumberCache', JSON.stringify(cache));
-}
-
-// Function to get reference number from cache
-function getCachedReferenceNumber(soId) {
-  const cache = JSON.parse(localStorage.getItem('referenceNumberCache') || '{}');
-  return cache[soId] || null;
-}
-
-// Function to handle table scrolling and load more orders as needed
-function handleTableScroll(event) {
-  const container = event.target;
-  const scrollPosition = container.scrollTop + container.clientHeight;
-  const scrollHeight = container.scrollHeight;
-  
-  // If we're close to the bottom and not already loading more
-  if (scrollHeight - scrollPosition < 200 && !isLoadingMoreOrders) {
-    loadMoreOrders();
-  }
-}
-
-// Function to load the next batch of orders
-async function loadMoreOrders() {
-  if (currentPage * pageSize >= allOrders.length) return;
-  
-  isLoadingMoreOrders = true;
-  
-  // Get the next batch of orders
-  const nextBatch = allOrders.slice(
-    currentPage * pageSize,
-    (currentPage + 1) * pageSize
-  );
-  
-  // First show orders without reference numbers
-  const ordersWithCachedRefs = nextBatch.map(order => {
-    // Try to get reference number from cache
-    const cachedRef = getCachedReferenceNumber(order.SOId);
-    return {
-      ...order,
-      referenceNumber: cachedRef || ''
-    };
-  });
-  
-  // Add to visible orders
-  visibleOrders = [...visibleOrders, ...ordersWithCachedRefs];
-  currentPage++;
-  
-  // Then fetch reference numbers only for orders that don't have cached values
-  const ordersNeedingRefs = nextBatch.filter(order => !getCachedReferenceNumber(order.SOId));
-  
-  if (ordersNeedingRefs.length > 0) {
-    const orderIds = ordersNeedingRefs.map(o => o.SOId);
-    
-    try {
-      const refResponse = await fetch('/api/reference-numbers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds })
-      });
-      
-      const batchData = await refResponse.json();
-      
-      // Update visible orders with the new reference numbers
-      batchData.references.forEach(ref => {
-        // Update in the visible orders array
-        const orderIndex = visibleOrders.findIndex(o => o.SOId === ref.SOId);
-        if (orderIndex !== -1) {
-          visibleOrders[orderIndex].referenceNumber = ref.referenceNumber;
-          // Force svelte to update
-          visibleOrders = [...visibleOrders];
-        }
-        
-        // Also update in the allOrders array
-        const allOrderIndex = allOrders.findIndex(o => o.SOId === ref.SOId);
-        if (allOrderIndex !== -1) {
-          allOrders[allOrderIndex].referenceNumber = ref.referenceNumber;
-        }
-        
-        // Cache the reference number
-        cacheReferenceNumber(ref.SOId, ref.referenceNumber);
-      });
-    } catch (error) {
-      console.error('Error fetching reference numbers:', error);
-    }
-  }
-  
-  isLoadingMoreOrders = false;
-}
-
-
-
 async function handleCardClick(event: any) {
   const { title, value } = event.detail;
   isLoadingKPIData = true;
@@ -528,84 +429,17 @@ async function handleCardClick(event: any) {
   try {
     const stage = parseInt(title.split(' ')[1]); 
     if (!isNaN(stage)) {
-
-      // Initialize cache
-      initializeCache();
-      
-      // Reset pagination variables
-      currentPage = 0;
-      visibleOrders = [];
-
-      // Initially, only fetch the basic order data without attempting to get reference numbers
       const response = await fetch('/api/stage-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          stage, 
-          ...dateRange, 
-          orderStatus, 
-          pmNameFilter: selectedPM,
-          skipReferenceNumbers: true 
-        })
+        body: JSON.stringify({ stage, ...dateRange, orderStatus, pmNameFilter: selectedPM })
       });
-      
       const data = await response.json();
-      allOrders = data.orders;
       modalContent = processModalData(data.orders, getStageTitle(stage), value);
-      showModal = true;
-
-      // Load the first page of orders
-      loadMoreOrders();
-      
-      // Set loading to false immediately after showing the modal with basic data
-      isLoadingKPIData = false;
-      
-      // Then load reference numbers asynchronously without blocking the UI
-      if (data.orders.length > 0) {
-        isLoadingReferences = true;
-        
-        // Load reference numbers in batches to avoid timeout
-        const batchSize = 20;
-        const allOrders = [...data.orders];
-        const orderDetailsWithReferences = [...modalContent.orderDetails];
-        
-        for (let i = 0; i < allOrders.length; i += batchSize) {
-          const batchOrderIds = allOrders.slice(i, i + batchSize).map(o => o.SOId);
-          
-          // Create a new endpoint that only fetches reference numbers for specific orders
-          const refResponse = await fetch('/api/reference-numbers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderIds: batchOrderIds })
-          });
-          
-          const batchData = await refResponse.json();
-          
-          // Update our order details with the new reference numbers
-          batchData.references.forEach(ref => {
-            const index = orderDetailsWithReferences.findIndex(o => o.SOId === ref.SOId);
-            if (index !== -1) {
-              orderDetailsWithReferences[index].referenceNumber = ref.referenceNumber;
-            }
-          });
-          
-          // Update the UI after each batch
-          modalContent = {
-            ...modalContent,
-            orderDetails: orderDetailsWithReferences
-          };
-        }
-        
-        isLoadingReferences = false;
-      }
     } else if (title === "Total Installations") {
       modalContent = processInstallationData(installationDetails, value);
-      showModal = true;
-      isLoadingKPIData = false;
     } else if (title === "Total Services") {
       modalContent = processServiceData(serviceDetails, value);
-      showModal = true;
-      isLoadingKPIData = false;
     } else {
       modalContent = { 
         title, 
@@ -616,14 +450,15 @@ async function handleCardClick(event: any) {
         agingData: agingData.details,
         orderDetails: []
       };
-      showModal = true;
-      isLoadingKPIData = false;
     }
+    showModal = true;
   } catch (error) {
     console.error('Error loading data:', error);
+  } finally {
     isLoadingKPIData = false;
   }
 }
+
 function processModalData(orders: any[], title: string, totalOrders: number): ModalContent {
   let totalSum = 0;
   let byClient: { [key: string]: { orders: number; sum: number; soNumbers: string[] } } = {};
@@ -651,13 +486,13 @@ function processModalData(orders: any[], title: string, totalOrders: number): Mo
     byCategory[order.SOCategory].soNumbers.push(order.SONumber);
   }
 
-  const orderDetails: OrderDetail[] = orders.map(order => ({
+    const orderDetails: OrderDetail[] = orders.map(order => ({
     SONumber: order.SONumber,
     SOId: order.SOId,
+    referenceNumber: order.referenceNumber,
     clientName: order.clientName,
     SOCategory: order.SOCategory,
-    SOAmount: order.Total,
-    referenceNumber: order.referenceNumber || ''
+	SOAmount: order.Total,
   }));
 
   return {
@@ -738,39 +573,59 @@ onDestroy(() => {
   <div class="max-w-7xl mx-auto">
     <header class="mb-8 flex justify-between items-center">
       <h1 class="text-3xl font-bold text-slate-800">Dashboard</h1>
-        <div class="flex items-center space-x-4 mb-4">
-          <div class="relative">
-            <select
-              class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              on:change={handleOrderStatusChange}
-            >
-              <option value="all">All Orders</option>
-              <option value="open" selected>Open Orders</option>
-              <option value="closed">Closed Orders</option>
-              <option value="void">Void Orders</option>
-              <option value="draft">Draft Orders</option>
-            </select>
-            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <Filter class="h-4 w-4 text-gray-400" />
-            </div>
-          </div>
-          
-          <div class="relative">
-            <select
-              class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              bind:value={selectedPM}
-              on:change={handlePMFilterChange}
-            >
-              <option value="all">All PMs</option>
-              {#each pmNames as pmName}
-                <option value={pmName}>{pmName}</option>
-              {/each}
-            </select>
-            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <Filter class="h-4 w-4 text-gray-400" />
-            </div>
+      <div class="flex items-center space-x-4 mb-4">
+        <!-- Order Status Filter -->
+        <div class="relative">
+          <select
+            class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            bind:value={orderStatus}
+            on:change={handleOrderStatusChange}
+          >
+            <option value="all">All Orders</option>
+            <option value="open">Open Orders</option>
+            <option value="closed">Closed Orders</option>
+            <option value="void">Void Orders</option>
+            <option value="draft">Draft Orders</option>
+          </select>
+          <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+            <Filter class="h-4 w-4 text-gray-400" />
           </div>
         </div>
+        
+        <!-- Invoice Status Filter -->
+        <div class="relative">
+          <select
+            class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            bind:value={invoiceStatus}
+            on:change={handleInvoiceStatusChange}
+          >
+            <option value="all">All Invoices</option>
+            {#each invoiceStatuses as status}
+              <option value={status}>{status}</option>
+            {/each}
+          </select>
+          <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+            <Filter class="h-4 w-4 text-gray-400" />
+          </div>
+        </div>
+        
+        <!-- PM Name Filter -->
+        <div class="relative">
+          <select
+            class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            bind:value={selectedPM}
+            on:change={handlePMFilterChange}
+          >
+            <option value="all">All PMs</option>
+            {#each pmNames as pmName}
+              <option value={pmName}>{pmName}</option>
+            {/each}
+          </select>
+          <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+            <Filter class="h-4 w-4 text-gray-400" />
+          </div>
+        </div>
+      </div>
     </header>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -933,9 +788,10 @@ onDestroy(() => {
                             {#each data.soNumbers as soNumber}
                               {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
                               {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
+                              {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
                               {#if soData}
                                 <div 
-                                  class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white"
+                                  class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white relative group"
                                   on:click={() => handleSOClick(soData.SOId)}
                                 >
                                   {soNumber}
@@ -944,6 +800,12 @@ onDestroy(() => {
                                       Age: {agingInfo.ageInHours}h
                                     </span>
                                   {/if}
+                                  
+                                  <!-- Tooltip -->
+                                  <div class="absolute z-10 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 -mt-1 left-full ml-2 w-48 shadow-lg">
+                                    <p class="mb-1"><strong>Reference:</strong> {orderDetail?.referenceNumber || 'N/A'}</p>
+                                    <p><strong>Amount:</strong> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
+                                  </div>
                                 </div>
                               {/if}
                             {/each}
@@ -1044,68 +906,41 @@ onDestroy(() => {
               </select>
             </div>
             <div class="overflow-hidden border border-gray-200 shadow sm:rounded-lg">
-<div class="h-[500px] overflow-auto" id="orders-table-container" on:scroll={handleTableScroll}>
-  <table class="min-w-full divide-y divide-gray-200">
-    <thead class="bg-gray-50 sticky top-0 z-10">
-    <tr>
-      {#each ['SONumber', 'Client Name', 'Category', 'Amount', 'Reference Number'] as column}
-        <th
-          scope="col"
-          class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-          on:click={() => toggleSort(column === 'Client Name' ? 'clientName' : column === 'Reference Number' ? 'referenceNumber' : column)}
-        >
-          <div class="flex items-center space-x-1">
-            <span>{column}</span>
-            <div class="flex flex-col">
-              <ChevronUp size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column === 'Reference Number' ? 'referenceNumber' : column) && sortDirection === 'asc' ? 'text-blue-500' : 'text-gray-300'} />
-              <ChevronDown size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column === 'Reference Number' ? 'referenceNumber' : column) && sortDirection === 'desc' ? 'text-blue-500' : 'text-gray-300'} />
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    {#each ['SONumber', 'Reference', 'Client Name', 'Category', 'Amount'] as column}
+                      <th 
+                        scope="col" 
+                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        on:click={() => toggleSort(column === 'Client Name' ? 'clientName' : column === 'Reference' ? 'referenceNumber' : column)}
+                      >
+                        <div class="flex items-center space-x-1">
+                          <span>{column}</span>
+                          <div class="flex flex-col">
+                            <ChevronUp size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column === 'Reference' ? 'referenceNumber' : column) && sortDirection === 'asc' ? 'text-blue-500' : 'text-gray-300'} />
+                            <ChevronDown size={12} class={sortColumn === (column === 'Client Name' ? 'clientName' : column === 'Reference' ? 'referenceNumber' : column) && sortDirection === 'desc' ? 'text-blue-500' : 'text-gray-300'} />
+                          </div>
+                        </div>
+                      </th>
+                    {/each}
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {#each filteredAndSortedOrders as order}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                      <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => handleSOClick(order.SOId)}>
+                        {order.SONumber}
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.referenceNumber}</td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </th>
-      {/each}
-    </tr>
-  </thead>
-  <tbody class="bg-white divide-y divide-gray-200">
-    {#each filteredAndSortedOrders as order}
-      <tr class="hover:bg-gray-50 transition-colors duration-150">
-        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => handleSOClick(order.SOId)}>
-          {order.SONumber}
-        </td>
-        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
-        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
-        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
-        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-          {#if order.referenceNumber}
-            {order.referenceNumber}
-          {:else if isLoadingReferences}
-            <span class="inline-flex items-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Loading...
-            </span>
-          {:else}
-            -
-          {/if}
-        </td>
-      </tr>
-    {/each}
-  </tbody>
-</table>
-  {#if isLoadingMoreOrders}
-    <div class="flex justify-center py-4">
-      <span class="inline-flex items-center">
-        <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        Loading more...
-      </span>
-    </div>
-  {/if}
-</div>
-</div>
           {/if}
           </div>
         </div>
