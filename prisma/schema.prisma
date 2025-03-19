@@ -55,7 +55,8 @@ model Stage0 {
   SOCategory   String     
   PMName       String
   clientExpectedDate    DateTime?
-  orderStatus  String 
+  orderStatus  String
+  referenceNumber String 
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   Stage1       Stage1[]
