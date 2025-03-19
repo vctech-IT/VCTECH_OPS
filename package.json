@@ -6,6 +6,7 @@
 		"dev": "vite dev",
 		"postinstall": "prisma generate",
 		"build": "prisma generate && vite build",
+		"sync": "tsx scripts/startZohoSync.ts"
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
