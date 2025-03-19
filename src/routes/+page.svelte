@@ -763,60 +763,72 @@ onDestroy(() => {
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
-            <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
-                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sum</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  {#each Object.entries(modalContent.categorizedData.byClient) as [client, data]}
-                    <tr class="hover:bg-gray-50 transition-colors duration-150">
-                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => showSONumbers(client, 'client')}>
-                        {client}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{data.orders}</td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">₹{data.sum.toLocaleString()}</td>
-                    </tr>
-                    {#if selectedClient === client}
-                      <tr>
-                        <td colspan="3" class="px-6 py-4">
-                          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                            {#each data.soNumbers as soNumber}
-                              {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
-                              {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
-                              {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
-                              {#if soData}
-                                <div 
-                                  class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white relative group"
-                                  on:click={() => handleSOClick(soData.SOId)}
-                                >
-                                  {soNumber}
-                                  {#if agingInfo}
-                                    <span class="block mt-1">
-                                      Age: {agingInfo.ageInHours}h
-                                    </span>
-                                  {/if}
-                                  
-                                  <!-- Tooltip -->
-                                  <div class="absolute z-10 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 -mt-1 left-full ml-2 w-48 shadow-lg">
-                                    <p class="mb-1"><strong>Reference:</strong> {orderDetail?.referenceNumber || 'N/A'}</p>
-                                    <p><strong>Amount:</strong> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
-                                  </div>
-                                </div>
+<div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sum</th>
+      </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200">
+      {#each Object.entries(modalContent.categorizedData.byClient) as [client, data]}
+        <tr class="hover:bg-gray-50 transition-colors duration-150">
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => showSONumbers(client, 'client')}>
+            {client}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{data.orders}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">₹{data.sum.toLocaleString()}</td>
+        </tr>
+        {#if selectedClient === client}
+          <tr>
+            <td colspan="3" class="px-6 py-4">
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {#each data.soNumbers as soNumber}
+                  {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
+                  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
+                  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
+                  {#if soData}
+                    <div 
+                      class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white relative"
+                      on:click={() => handleSOClick(soData.SOId)}
+                    >
+                      <!-- SO number container -->
+                      <div class="tooltip-container">
+                        <span>{soNumber}</span>
+                        {#if agingInfo}
+                          <span class="block mt-1">
+                            Age: {agingInfo.ageInHours}h
+                          </span>
+                        {/if}
+                        
+                        <!-- Improved tooltip -->
+                        <div class="tooltip-content">
+                          <div class="tooltip-arrow"></div>
+                          <div class="tooltip-inner">
+                            <p class="tooltip-title">{soNumber}</p>
+                            <div class="tooltip-details">
+                              <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
+                              <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
+                              {#if orderDetail?.SOCategory}
+                                <p><span>Category:</span> {orderDetail.SOCategory}</p>
                               {/if}
-                            {/each}
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    {/if}
-                  {/each}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                {/each}
+              </div>
+            </td>
+          </tr>
+        {/if}
+      {/each}
+    </tbody>
+  </table>
+</div>
           {:else if activeTab === 1}
             <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
               <table class="min-w-full divide-y divide-gray-200">
@@ -960,8 +972,84 @@ onDestroy(() => {
 {/if}
 
 <style>
+
   :global(body) {
     background-color: #f1f5f9;
+  }
+
+  /* Add these styles to your component or global CSS */
+  .tooltip-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  
+  .tooltip-content {
+    visibility: hidden;
+    position: absolute;
+    z-index: 1000; /* Higher z-index to ensure it's above other elements */
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 125%; /* Position above the element */
+    width: 200px;
+    background-color: #2d3748;
+    color: white;
+    border-radius: 6px;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    pointer-events: none;
+  }
+  
+  .tooltip-arrow {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #2d3748;
+  }
+  
+  .tooltip-inner {
+    padding: 10px;
+  }
+  
+  .tooltip-title {
+    font-weight: bold;
+    font-size: 14px;
+    border-bottom: 1px solid #4a5568;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+    color: #63b3ed;
+  }
+  
+  .tooltip-details p {
+    margin: 5px 0;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .tooltip-details p span {
+    font-weight: bold;
+    color: #a0aec0;
+  }
+  
+  /* Show the tooltip when hovering over the container */
+  .tooltip-container:hover .tooltip-content {
+    visibility: visible;
+    opacity: 1;
+  }
+  
+  /* Responsive positioning for different screen sizes */
+  @media (max-width: 640px) {
+    .tooltip-content {
+      width: 160px;
+    }
   }
 </style>
 
