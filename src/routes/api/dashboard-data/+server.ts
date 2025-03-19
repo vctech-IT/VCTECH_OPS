@@ -1,3 +1,4 @@
+// src/routes/api/dashboard-data/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/database';
@@ -78,7 +79,7 @@ function processAgingData(agingData: AgingData[], currentDate: Date): ProcessedA
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-        const { start, end, orderStatus, pmNameFilter } = await request.json();
+        const { start, end, orderStatus, pmNameFilter, invoiceStatusFilter } = await request.json();
 
     type DateFilter = {
       createdAt?: {
@@ -97,6 +98,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const statusFilter = orderStatus === 'all' ? {} : { orderStatus };
     const pmFilter = pmNameFilter === 'all' ? {} : { PMName: pmNameFilter };
+    const invoiceFilter = invoiceStatusFilter === 'all' ? {} : { invoiceStatus: invoiceStatusFilter };
 
     const [
       totalOrders,
@@ -110,7 +112,8 @@ export const POST: RequestHandler = async ({ request }) => {
       installationDetails,
       serviceDetails,
       agingData,
-      pmNames
+      pmNames,
+      invoiceStatuses
     ] = await Promise.all([
       db.stage0.count({ where: { ...dateFilter, ...statusFilter, ...pmFilter } }),
       db.stage0.aggregate({
@@ -223,6 +226,16 @@ export const POST: RequestHandler = async ({ request }) => {
         orderBy: {
           PMName: 'asc'
         }
+      }),
+
+    db.stage0.findMany({
+        select: {
+          invoiceStatus: true
+        },
+        distinct: ['invoiceStatus'],
+        orderBy: {
+          invoiceStatus: 'asc'
+        }
       })
     ]);
 
@@ -268,7 +281,8 @@ export const POST: RequestHandler = async ({ request }) => {
         vendorName: s.VendorName
       })),
       agingData: processedAgingData,
-      pmNames: pmNames.map(pm => pm.PMName)
+      pmNames: pmNames.map(pm => pm.PMName),
+      invoiceStatuses: invoiceStatuses.map(inv => inv.invoiceStatus).filter(Boolean)
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
