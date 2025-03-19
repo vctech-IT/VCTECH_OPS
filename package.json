@@ -60,6 +60,7 @@
 		"@sendgrid/mail": "^8.1.3",
 		"@skeletonlabs/skeleton": "^2.10.2",
 		"@svelteuidev/core": "^0.15.7",
+		"@upstash/qstash": "^2.7.22",
 		"@vercel/analytics": "^1.4.1",
 		"@vercel/speed-insights": "^1.1.0",
 		"@zerodevx/svelte-toast": "^0.9.5",
