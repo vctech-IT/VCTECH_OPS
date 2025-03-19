@@ -127,7 +127,7 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
     title: 'Stage 0. Site Not Ready', 
     completed: false, 
     visible: true,
-    editableRoles: ['ADMIN', 'MANAGER', 'ACCOUNTANT']
+    editableRoles: ['ADMIN', 'MANAGER', 'OPERATION', 'WAREHOUSE']
   },
   { 
     title: 'Stage 1. Logistics', 
@@ -151,7 +151,7 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
     title: 'Stage 4. Return Pickup', 
     completed: false, 
     visible: false,
-    editableRoles: ['ADMIN', 'MANAGER', 'OPERATION']
+    editableRoles: ['ADMIN', 'MANAGER', 'OPERATION', 'WAREHOUSE']
   },
   { 
     title: 'Stage 5. Share with Account', 
@@ -166,7 +166,6 @@ async function logLineItemChange(itemId: string, itemName: string, oldStatus: st
     editableRoles: ['ADMIN', 'MANAGER']
   }
 ];
-
 
 
 $: console.log('Current stage in modal:', currentStage);
