@@ -1,1 +1,173 @@
+// src/lib/server/zohoSync.ts
+import axios from 'axios';
+import { PrismaClient } from '@prisma/client';
+import * as dotenv from 'dotenv';
+import { scheduleJob } from 'node-schedule';
 
+dotenv.config();
+
+const REFRESH_TOKEN = '1000.b94e5345a93e9e0f672a31a27a2fd390.0ba27ca3d43ba0863e11c303b6a8c16f';
+const CLIENT_ID = '1000.KXTGP1GAGIDX12Q294C6OIMVR60VMX';
+const CLIENT_SECRET = 'bb44b083c2b29eb4eefd1a605266a866fcd5f491fb';
+const REDIRECT_URI = 'https://www.google.com/';
+
+const prisma = new PrismaClient();
+let authToken: string | null = null;
+let tokenExpiry = 0;
+
+async function refreshToken(): Promise<void> {
+  try {
+    const response = await axios.post('https://accounts.zoho.in/oauth/v2/token', null, {
+      params: {
+        refresh_token: REFRESH_TOKEN,
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        redirect_uri: REDIRECT_URI,
+        grant_type: 'refresh_token'
+      }
+    });
+    
+    authToken = response.data.access_token;
+    tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+    console.log('Token refreshed successfully');
+  } catch (error) {
+    console.error('Failed to refresh token:', error);
+    throw error;
+  }
+}
+
+async function getValidToken(): Promise<string> {
+  if (!authToken || Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+    await refreshToken();
+  }
+  return authToken!;
+}
+
+async function fetchAllZohoSalesOrders(): Promise<any[]> {
+  const baseUrl = 'https://www.zohoapis.in/books/v3/salesorders';
+  const params = {
+    organization_id: '60005679410',
+    page: 1,
+    per_page: 200
+  };
+  
+  let allSalesOrders: any[] = [];
+  
+  try {
+    while (true) {
+      const headers = {
+        Authorization: `Zoho-oauthtoken ${await getValidToken()}`
+      };
+      
+      const response = await axios.get(baseUrl, { params, headers });
+      const pageSalesOrders = response.data.salesorders || [];
+      allSalesOrders = [...allSalesOrders, ...pageSalesOrders];
+      
+      if (response.data.page_context?.has_more_page) {
+        params.page += 1;
+      } else {
+        break;
+      }
+    }
+    
+    return allSalesOrders;
+  } catch (error) {
+    console.error('Error fetching sales orders:', error);
+    return [];
+  }
+}
+
+function mapFields(salesOrder: any): any {
+  // Define your field mapping based on your schema
+  return {
+    SONumber: salesOrder.salesorder_number,
+    SOId: salesOrder.salesorder_id || '',
+    clientName: salesOrder.customer_name || '',
+    SubTotal: parseFloat(salesOrder.sub_total) || 0.0,
+    Total: parseFloat(salesOrder.total) || 0.0,
+    SOCategory: salesOrder.cf_so_cat || '',
+    PMName: salesOrder.cf_project_manager_name || '',
+    isDropped: false,
+    currentStage: 0,
+    orderStatus: salesOrder.order_status || '',
+    referenceNumber: salesOrder.reference_number || '',
+    invoiceStatus: salesOrder.invoice_status || '',
+    createdAt: salesOrder.created_time ? new Date(salesOrder.created_time) : new Date(),
+    updatedAt: salesOrder.last_modified_time ? new Date(salesOrder.last_modified_time) : new Date(),
+  };
+}
+
+async function upsertDataToDatabase(data: any[]): Promise<void> {
+  try {
+    for (const item of data) {
+      // Skip if no SONumber (primary key)
+      if (!item.SONumber) continue;
+      
+      // Get existing record to preserve currentStage
+      const existing = await prisma.stage0.findUnique({
+        where: { SONumber: item.SONumber }
+      });
+      
+      if (existing?.currentStage !== undefined) {
+        item.currentStage = existing.currentStage;
+      }
+      
+      // Upsert the document
+      await prisma.stage0.upsert({
+        where: { SONumber: item.SONumber },
+        update: item,
+        create: item
+      });
+    }
+    
+    console.log(`[${new Date().toISOString()}] Upserted ${data.length} documents`);
+  } catch (error) {
+    console.error('Error upserting data:', error);
+  }
+}
+
+async function syncData(firstRun = false): Promise<void> {
+  console.log(`[${new Date().toISOString()}] Starting sync process...`);
+  
+  try {
+    const salesOrders = await fetchAllZohoSalesOrders();
+    console.log(`Total records fetched: ${salesOrders.length}`);
+    
+    // Filter records if not first run
+    const ordersToProcess = firstRun 
+      ? salesOrders 
+      : salesOrders.filter(order => order.order_status === 'open');
+    
+    if (!firstRun) {
+      console.log(`Open records to process: ${ordersToProcess.length}`);
+    }
+    
+    if (ordersToProcess.length > 0) {
+      const mappedData = ordersToProcess.map(order => mapFields(order));
+      await upsertDataToDatabase(mappedData);
+    } else {
+      console.log("No relevant sales orders to process");
+    }
+  } catch (error) {
+    console.error('Error in syncData:', error);
+  }
+}
+
+// For running as a standalone process
+if (require.main === module) {
+  // Run initial sync
+  syncData(true).then(() => {
+    // Schedule recurring sync (every 10 minutes)
+    scheduleJob('*/10 * * * *', async () => {
+      await syncData();
+    });
+    
+    console.log('Zoho sync service started. Running every 10 minutes.');
+  }).catch(error => {
+    console.error('Failed to start sync service:', error);
+    process.exit(1);
+  });
+}
+
+// Export for use in SvelteKit hooks
+export { syncData };
