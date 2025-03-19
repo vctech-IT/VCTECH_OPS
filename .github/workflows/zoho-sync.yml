@@ -1,0 +1,14 @@
+name: Zoho Sync
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Run every 10 minutes
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Zoho Sync Endpoint
+        run: |
+          curl -X GET https://your-vercel-app.vercel.app/api/zoho-sync
