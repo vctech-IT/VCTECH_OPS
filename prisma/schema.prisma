@@ -57,6 +57,7 @@ model Stage0 {
   clientExpectedDate    DateTime?
   orderStatus  String
   referenceNumber String 
+  invoiceStatus   String
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   Stage1       Stage1[]
