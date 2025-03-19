@@ -811,9 +811,6 @@ onDestroy(() => {
                             <div class="tooltip-details">
                               <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
                               <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
-                              {#if orderDetail?.SOCategory}
-                                <p><span>Category:</span> {orderDetail.SOCategory}</p>
-                              {/if}
                             </div>
                           </div>
                         </div>
