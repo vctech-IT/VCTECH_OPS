@@ -115,10 +115,10 @@ export const POST: RequestHandler = async ({ request }) => {
       pmNames,
       invoiceStatuses
     ] = await Promise.all([
-      db.stage0.count({ where: { ...dateFilter, ...statusFilter, ...pmFilter } }),
+      db.stage0.count({ where: { ...dateFilter, ...statusFilter, ...pmFilter, ...invoiceFilter } }),
       db.stage0.aggregate({
         _sum: { Total: true },
-        where: { ...dateFilter, ...statusFilter, ...pmFilter }
+        where: { ...dateFilter, ...statusFilter, ...pmFilter, ...invoiceFilter }
       }),
       db.installation.count({
         where: {
@@ -135,7 +135,7 @@ export const POST: RequestHandler = async ({ request }) => {
       db.stage0.groupBy({
         by: ['SOCategory'],
         _count: true,
-        where: {...dateFilter, ...statusFilter, ...pmFilter}, 
+        where: {...dateFilter, ...statusFilter, ...pmFilter, ...invoiceFilter}, 
       }),
       db.stage0.findMany({
         where: dateFilter,
@@ -153,7 +153,7 @@ export const POST: RequestHandler = async ({ request }) => {
       db.stage0.groupBy({
         by: ['currentStage'],
         _count: true,
-        where: {...dateFilter, ...statusFilter, ...pmFilter }
+        where: {...dateFilter, ...statusFilter, ...pmFilter, ...invoiceFilter }
       }),
       db.stage0.groupBy({
         by: ['clientName'],
@@ -161,7 +161,7 @@ export const POST: RequestHandler = async ({ request }) => {
         _sum: { Total: true },
         orderBy: [{ _sum: { Total: 'desc' } }],
         take: 10,
-        where: {...dateFilter, ...statusFilter, ...pmFilter},
+        where: {...dateFilter, ...statusFilter, ...pmFilter, ...invoiceFilter },
       }),
       // Installation details
       db.installation.findMany({
