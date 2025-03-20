@@ -238,6 +238,7 @@ function saveState() {
       sortDirection,
       filterCategory,
       modalContent,
+      invoiceStatus,
       dateRange
     };
     
@@ -268,7 +269,7 @@ async function fetchDashboardData() {
   const response = await fetch('/api/dashboard-data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM })
+    body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatusFilter: invoiceStatus  })
   });
   const data = await response.json();
  
@@ -432,7 +433,7 @@ async function handleCardClick(event: any) {
       const response = await fetch('/api/stage-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage, ...dateRange, orderStatus, pmNameFilter: selectedPM })
+        body: JSON.stringify({ stage, ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatus })
       });
       const data = await response.json();
       modalContent = processModalData(data.orders, getStageTitle(stage), value);
@@ -763,16 +764,16 @@ onDestroy(() => {
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
-<div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
-  <table class="min-w-full divide-y divide-gray-200">
-    <thead class="bg-gray-50">
-      <tr>
-        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
-        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sum</th>
-      </tr>
-    </thead>
-    <tbody class="bg-white divide-y divide-gray-200">
+            <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sum</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
       {#each Object.entries(modalContent.categorizedData.byClient) as [client, data]}
         <tr class="hover:bg-gray-50 transition-colors duration-150">
           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" on:click={() => showSONumbers(client, 'client')}>
@@ -818,14 +819,14 @@ onDestroy(() => {
                     </div>
                   {/if}
                 {/each}
-              </div>
-            </td>
-          </tr>
-        {/if}
-      {/each}
-    </tbody>
-  </table>
-</div>
+                          </div>
+                        </td>
+                      </tr>
+                    {/if}
+                  {/each}
+                </tbody>
+              </table>
+            </div>
           {:else if activeTab === 1}
             <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
               <table class="min-w-full divide-y divide-gray-200">
