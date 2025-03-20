@@ -63,7 +63,7 @@ let selectedCategory: string | null = null;
 let pmNames: string[] = [];
 let selectedPM: string = 'all';
 let isLoadingKPIData = false;
-let invoiceStatus = 'all';
+let invoiceStatus = 'not_invoiced';
 let invoiceStatuses: string[] = [];
 
 interface OrderDetail {
