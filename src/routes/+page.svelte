@@ -850,23 +850,39 @@ onDestroy(() => {
                       <tr>
                         <td colspan="3" class="px-6 py-4">
                           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                            {#each data.soNumbers as soNumber}
-                              {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
-                              {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
-                              {#if soData}
-                                <div 
-                                  class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white"
-                                  on:click={() => handleSOClick(soData.SOId)}
-                                >
-                                  {soNumber}
-                                  {#if agingInfo}
-                                    <span class="block mt-1">
-                                      Age: {agingInfo.ageInHours}h
-                                    </span>
-                                  {/if}
-                                </div>
-                              {/if}
-                            {/each}
+{#each data.soNumbers as soNumber}
+  {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
+  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
+  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
+  {#if soData}
+    <div 
+      class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white relative"
+      on:click={() => handleSOClick(soData.SOId)}
+    >
+      <!-- SO number container -->
+      <div class="tooltip-container">
+        <span>{soNumber}</span>
+        {#if agingInfo}
+          <span class="block mt-1">
+            Age: {agingInfo.ageInHours}h
+          </span>
+        {/if}
+        
+        <!-- Tooltip -->
+        <div class="tooltip-content">
+          <div class="tooltip-arrow"></div>
+          <div class="tooltip-inner">
+            <p class="tooltip-title">{soNumber}</p>
+            <div class="tooltip-details">
+              <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
+              <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+{/each}
                           </div>
                         </td>
                       </tr>
@@ -879,20 +895,37 @@ onDestroy(() => {
               <div class="bg-white rounded-lg shadow-sm p-4">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">SO Numbers</h3>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {#each modalContent.soNumbers as { SONumber, SOId }}
-                    {@const agingInfo = modalContent.agingData.find(item => item.SONumber === SONumber)}
-                    <div 
-                      class="rounded-lg p-3 text-sm font-medium cursor-pointer transition-colors duration-150 {getAgingColor(agingInfo?.isOverdue)}"
-                      on:click={() => handleSOClick(SOId)}
-                    >
-                      {SONumber}
-                      {#if agingInfo}
-                        <span class="block text-xs mt-1">
-                          {agingInfo.isOverdue ? 'Overdue' : 'On Time'} ({agingInfo.ageInHours}h)
-                        </span>
-                      {/if}
-                    </div>
-                  {/each}
+{#each modalContent.soNumbers as { SONumber, SOId }}
+  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === SONumber)}
+  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === SONumber)}
+  <div 
+    class="rounded-lg p-3 text-sm font-medium cursor-pointer transition-colors duration-150 relative {getAgingColor(agingInfo?.isOverdue)}"
+    on:click={() => handleSOClick(SOId)}
+  >
+    <div class="tooltip-container">
+      <span>{SONumber}</span>
+      {#if agingInfo}
+        <span class="block text-xs mt-1">
+          {agingInfo.isOverdue ? 'Overdue' : 'On Time'} ({agingInfo.ageInHours}h)
+        </span>
+      {/if}
+      
+      <!-- Tooltip -->
+      <div class="tooltip-content">
+        <div class="tooltip-arrow"></div>
+        <div class="tooltip-inner">
+          <p class="tooltip-title">{SONumber}</p>
+          <div class="tooltip-details">
+            <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
+            <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
+            <p><span>Client:</span> {orderDetail?.clientName || 'N/A'}</p>
+            <p><span>Category:</span> {orderDetail?.SOCategory || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{/each}
                 </div>
               </div>
           {:else if activeTab === 3}
