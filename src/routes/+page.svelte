@@ -38,6 +38,7 @@ interface DashboardState {
   modalContent: ModalContent;
   invoiceStatus: string;
   dateRange: { start: string | null; end: string | null };
+  showAllTooltips: boolean;
 }
 
 let totalOrders = 0;
@@ -83,6 +84,7 @@ let showAllTooltips = false;
 
 function toggleAllTooltips() {
   showAllTooltips = !showAllTooltips;
+  saveState();
 }
 
 $: filteredAndSortedOrders = modalContent.orderDetails
@@ -231,6 +233,7 @@ function loadState() {
       sortColumn = state.sortColumn;
       sortDirection = state.sortDirection;
       filterCategory = state.filterCategory;
+      showAllTooltips = state.showAllTooltips !== undefined ? state.showAllTooltips : false; // Add this line
 
       // Ensure modalContent is properly restored with all required properties
       if (state.modalContent) {
@@ -241,7 +244,7 @@ function loadState() {
           categorizedData: state.modalContent.categorizedData || { byClient: {}, byCategory: {} },
           soNumbers: state.modalContent.soNumbers || [],
           agingData: state.modalContent.agingData || {},
-          orderDetails: state.modalContent.orderDetails || []
+          orderDetails: state.modalContent.orderDetails || [],
         };
       }
       
@@ -282,7 +285,8 @@ function saveState() {
       filterCategory,
       modalContent,
       invoiceStatus,
-      dateRange
+      dateRange,
+      showAllTooltips
     };
     
     localStorage.setItem('dashboardState', JSON.stringify(state));
@@ -842,27 +846,25 @@ onDestroy(() => {
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
-  <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
-    <div class="flex items-center justify-between bg-gray-50 px-6 py-3">
-      <div class="flex space-x-2">
-        <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</span>
-        <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</span>
-        <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sum</span>
-      </div>
-      <button 
-        on:click={toggleAllTooltips} 
-        class="flex items-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-xs transition-colors duration-150 shadow-sm"
-        title={showAllTooltips ? "Hide details" : "Show all details"}
-      >
-        {#if showAllTooltips}
-          <LayoutGrid size={14} class="mr-1" />
-          <span>Hide Details</span>
-        {:else}
-          <LayoutList size={14} class="mr-1" />
-          <span>Show Details</span>
-        {/if}
-      </button>
-    </div>
+        <!-- Tab header with options -->
+        <div class="flex justify-between items-center mb-4 px-2">
+          <h3 class="text-sm font-medium text-gray-700">Client Summary</h3>
+          <button 
+            on:click={toggleAllTooltips} 
+            class="flex items-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-xs transition-colors duration-150 shadow-sm"
+            title={showAllTooltips ? "Hide details" : "Show all details"}
+          >
+            {#if showAllTooltips}
+              <LayoutGrid size={14} class="mr-1" />
+              <span>Compact View</span>
+            {:else}
+              <LayoutList size={14} class="mr-1" />
+              <span>Detailed View</span>
+            {/if}
+          </button>
+        </div>
+        
+        <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
