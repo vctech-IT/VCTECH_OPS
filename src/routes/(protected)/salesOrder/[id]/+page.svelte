@@ -26,6 +26,7 @@
 let currentPage = 1;
 let logsPerPage = 5;
 let isLoading = false;
+let isLoadingNavigate = false;
 let submissionSuccessful = false;
 
 
@@ -184,8 +185,10 @@ function toggleCategory(category: string) {
       }
   }
 
-  function goBack() {
-      goto('/salesOrder');
+  async function goBack() {
+      isLoadingNavigate = true;
+      await goto('/');
+      isLoadingNavigate = false;
   }
 
   function downloadDocument(doc: any) {
@@ -591,6 +594,12 @@ async function refreshActivityLogs() {
 {#if isLoading}
   <CustomLoader message="Please Wait, Updating Sales Order..." />
 {/if}
+
+{#if isLoadingNavigate}
+  <CustomLoader message="Please Wait, Redirecting to dashobard..." />
+{/if}
+
+
 
 <ChatBox 
 salesOrderNumber={salesOrder.salesorder_number}
