@@ -550,6 +550,41 @@ function processModalData(orders: any[], title: string, totalOrders: number): Mo
   };
 }
 
+// Add this to your script section
+function handleTooltipPosition(event) {
+  const tooltip = event.currentTarget.querySelector('.tooltip-content');
+  if (!tooltip) return;
+  
+  const rect = tooltip.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  
+  // Check if tooltip would be off-screen to the right
+  if (rect.right > viewportWidth - 20) {
+    tooltip.style.left = 'auto';
+    tooltip.style.right = '0';
+    tooltip.style.transform = 'translateX(0) translateY(-2px)';
+    
+    // Adjust arrow position
+    const arrow = tooltip.querySelector('.tooltip-arrow');
+    if (arrow) {
+      arrow.style.left = '85%';
+    }
+  }
+  
+  // Check if tooltip would be off-screen to the left
+  if (rect.left < 20) {
+    tooltip.style.left = '0';
+    tooltip.style.right = 'auto';
+    tooltip.style.transform = 'translateX(0) translateY(-2px)';
+    
+    // Adjust arrow position
+    const arrow = tooltip.querySelector('.tooltip-arrow');
+    if (arrow) {
+      arrow.style.left = '15%';
+    }
+  }
+}
+
 
 function getStageTitle(stage: number): string {
   switch (stage) {
@@ -804,24 +839,23 @@ onDestroy(() => {
       
     <div class="bg-white p-4">
       <Tabs tabs={['By Client', 'By Category', 'SO Numbers', 'Detailed View']} bind:activeTab>
-    <div class="flex justify-end mt-2 mb-4">
-      <button 
-        on:click={toggleAllTooltips} 
-        class="flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-sm transition-colors duration-150 shadow-sm"
-        title={showAllTooltips ? "Hide details" : "Show all details"}
-      >
-        <span class="mr-2">{showAllTooltips ? 'Compact View' : 'Detailed View'}</span>
-        {#if showAllTooltips}
-          <LayoutGrid size={16} />
-        {:else}
-          <LayoutList size={16} />
-        {/if}
-      </button>
-    </div>
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
             <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
+		    <div class="flex justify-end mt-2 mb-4">
+		      <button 
+		        on:click={toggleAllTooltips} 
+		        class="flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-sm transition-colors duration-150 shadow-sm"
+		        title={showAllTooltips ? "Hide details" : "Show all details"}
+		      >
+		        {#if showAllTooltips}
+		          <LayoutGrid size={16} />
+		        {:else}
+		          <LayoutList size={16} />
+		        {/if}
+		      </button>
+		    </div>
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -853,7 +887,10 @@ onDestroy(() => {
       on:click={() => handleSOClick(soData.SOId)}
     >
       <!-- SO number container -->
-      <div class="tooltip-container">
+      <div 
+	  class="tooltip-container tooltip-positioning-fix"
+	  on:mouseenter={handleTooltipPosition}
+	>
         <span>{soNumber}</span>
         {#if agingInfo}
           <span class="block mt-1">
@@ -874,6 +911,7 @@ onDestroy(() => {
             </p>
           </div>
         {:else}
+
           <!-- Regular tooltip -->
           <div class="tooltip-content">
             <div class="tooltip-arrow"></div>
@@ -882,7 +920,6 @@ onDestroy(() => {
               <div class="tooltip-details">
                 <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
                 <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
-                <p><span>Client:</span> {orderDetail?.clientName || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -932,7 +969,10 @@ onDestroy(() => {
       on:click={() => handleSOClick(soData.SOId)}
     >
       <!-- SO number container -->
-      <div class="tooltip-container">
+      <div 
+	  class="tooltip-container tooltip-positioning-fix"
+	  on:mouseenter={handleTooltipPosition}
+	>
         <span>{soNumber}</span>
         {#if agingInfo}
           <span class="block mt-1">
@@ -975,7 +1015,10 @@ onDestroy(() => {
     class="rounded-lg p-3 text-sm font-medium cursor-pointer transition-colors duration-150 relative {getAgingColor(agingInfo?.isOverdue)}"
     on:click={() => handleSOClick(SOId)}
   >
-    <div class="tooltip-container">
+	<div 
+	  class="tooltip-container tooltip-positioning-fix"
+	  on:mouseenter={handleTooltipPosition}
+	>
       <span>{SONumber}</span>
       {#if agingInfo}
         <span class="block text-xs mt-1">
@@ -1082,6 +1125,17 @@ onDestroy(() => {
     background-color: #f1f5f9;
   }
 
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
   /* Add these styles to your existing CSS */
 .expanded-tooltip-view {
   display: grid;
@@ -1144,23 +1198,32 @@ onDestroy(() => {
     width: 100%;
   }
   
-  .tooltip-content {
-    visibility: hidden;
-    position: absolute;
-    z-index: 1000; /* Higher z-index to ensure it's above other elements */
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 125%; /* Position above the element */
-    width: 200px;
-    background-color: #2d3748;
-    color: white;
-    border-radius: 6px;
-    padding: 0;
-    opacity: 0;
-    transition: opacity 0.3s;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    pointer-events: none;
-  }
+.tooltip-content {
+  visibility: hidden;
+  position: absolute;
+  z-index: 1050; /* Increased z-index to ensure it's above other elements */
+  left: 0;
+  transform: translateX(0); /* Changed from -50% for better positioning */
+  bottom: calc(100% + 10px); /* More space above the element */
+  width: 250px; /* Slightly wider for better readability */
+  background-color: #2d3748;
+  color: white;
+  border-radius: 8px;
+  padding: 0;
+  opacity: 0;
+  transition-delay: 0.2s;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  max-width: 100vw; /* Prevent overflow on small screens */
+pointer-events: none; /* Change this to allow interaction */
+}
+
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
   
   .tooltip-arrow {
     position: absolute;
@@ -1200,10 +1263,108 @@ onDestroy(() => {
   }
   
   /* Show the tooltip when hovering over the container */
-  .tooltip-container:hover .tooltip-content {
-    visibility: visible;
-    opacity: 1;
+.tooltip-container:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+  animation: tooltip-fade-in 0.2s ease-out;
+  transition-delay: 0s;
+pointer-events: auto; /* Enable interaction when visible */
+}
+
+/* Check if tooltip would be off-screen to the right and adjust */
+@media (min-width: 640px) {
+  .tooltip-container {
+    position: static; /* Make positioning more predictable */
   }
+  
+  .tooltip-content {
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+  }
+  
+  .tooltip-container:hover .tooltip-content {
+    transform: translateX(-50%) translateY(-2px);
+  }
+  
+  /* Right-edge detection and repositioning */
+  .tooltip-container:nth-last-child(-n+2) .tooltip-content,
+  .tooltip-container:last-child .tooltip-content {
+    left: auto;
+    right: 0;
+    transform: translateX(0) translateY(0);
+  }
+  
+  .tooltip-container:nth-last-child(-n+2):hover .tooltip-content,
+  .tooltip-container:last-child:hover .tooltip-content {
+    transform: translateX(0) translateY(-2px);
+  }
+}
+
+.tooltip-arrow {
+  position: absolute;
+  bottom: -8px;
+  left: 15%; /* Adjusted from 50% for better alignment */
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #2d3748;
+}
+
+/* For right-aligned tooltips, move the arrow */
+@media (min-width: 640px) {
+  .tooltip-arrow {
+    left: 50%;
+  }
+  
+  .tooltip-container:nth-last-child(-n+2) .tooltip-arrow,
+  .tooltip-container:last-child .tooltip-arrow {
+    left: 85%;
+  }
+}
+
+.tooltip-inner {
+  padding: 12px;
+}
+
+.tooltip-title {
+  font-weight: bold;
+  font-size: 14px;
+  border-bottom: 1px solid #4a5568;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  color: #63b3ed;
+}
+
+.tooltip-details p {
+  margin: 6px 0;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  line-height: 1.4;
+}
+
+.tooltip-details p span {
+  font-weight: bold;
+  color: #a0aec0;
+}
+
+/* Prevent tooltip from being clipped by overflow containers */
+.overflow-x-auto, .overflow-hidden {
+  overflow: visible !important;
+}
+
+/* Only apply overflow styles to the children */
+.overflow-x-auto > div, .overflow-hidden > div {
+  overflow-x: auto;
+}
+
+/* Add this to help with positioning in scrollable containers */
+.tooltip-positioning-fix {
+  position: relative;
+  z-index: 5;
+}
   
   /* Responsive positioning for different screen sizes */
   @media (max-width: 640px) {
