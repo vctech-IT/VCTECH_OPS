@@ -16,7 +16,7 @@ import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
 import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 import { fade, fly } from 'svelte/transition';
 import { quintOut } from 'svelte/easing';
-import {  Filter } from 'lucide-svelte';
+import {  Eye, EyeOff, Filter } from 'lucide-svelte';
 import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
 import { Interface } from 'readline';
@@ -79,6 +79,11 @@ let searchTerm = '';
 let sortColumn = 'SONumber';
 let sortDirection: 'asc' | 'desc' = 'asc';
 let filterCategory = 'All';
+let showAllTooltips = false;
+
+function toggleAllTooltips() {
+  showAllTooltips = !showAllTooltips;
+}
 
 $: filteredAndSortedOrders = modalContent.orderDetails
   ? modalContent.orderDetails
@@ -803,6 +808,20 @@ onDestroy(() => {
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
             <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
+              <!-- Add this button near the top of each tab content, just below the tab headers -->
+              <div class="flex justify-end mb-4">
+                <button 
+                  on:click={toggleAllTooltips} 
+                  class="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors duration-150 shadow-sm"
+                >
+                  <span class="mr-2">{showAllTooltips ? 'Hide' : 'Show'} All Details</span>
+                  {#if showAllTooltips}
+                    <EyeOff size={16} />
+                  {:else}
+                    <Eye size={16} />
+                  {/if}
+                </button>
+              </div>
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -824,39 +843,60 @@ onDestroy(() => {
           <tr>
             <td colspan="3" class="px-6 py-4">
               <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {#each data.soNumbers as soNumber}
-                  {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
-                  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
-                  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
-                  {#if soData}
-                    <div 
-                      class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white relative"
-                      on:click={() => handleSOClick(soData.SOId)}
-                    >
-                      <!-- SO number container -->
-                      <div class="tooltip-container">
-                        <span>{soNumber}</span>
-                        {#if agingInfo}
-                          <span class="block mt-1">
-                            Age: {agingInfo.ageInHours}h
-                          </span>
-                        {/if}
-                        
-                        <!-- Improved tooltip -->
-                        <div class="tooltip-content">
-                          <div class="tooltip-arrow"></div>
-                          <div class="tooltip-inner">
-                            <p class="tooltip-title">{soNumber}</p>
-                            <div class="tooltip-details">
-                              <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
-                              <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  {/if}
-                {/each}
+{#each data.soNumbers as soNumber}
+  {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
+  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
+  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
+  {#if soData}
+    <div 
+      class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 {showAllTooltips ? 'bg-white border border-blue-400 text-slate-800' : 'bg-blue-400 text-white'} relative"
+      on:click={() => handleSOClick(soData.SOId)}
+    >
+      <!-- SO number container -->
+      <div class="tooltip-container">
+        <span>{soNumber}</span>
+        {#if agingInfo}
+          <span class="block mt-1">
+            Age: {agingInfo.ageInHours}h
+          </span>
+        {/if}
+        
+        {#if showAllTooltips}
+          <!-- Expanded view when show all is active -->
+          <div class="mt-2 text-xs border-t border-gray-200 pt-2">
+            <p class="flex justify-between mb-1">
+              <span class="font-medium text-gray-500">Reference:</span>
+              <span>{orderDetail?.referenceNumber || 'N/A'}</span>
+            </p>
+            <p class="flex justify-between mb-1">
+              <span class="font-medium text-gray-500">Amount:</span>
+              <span>₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</span>
+            </p>
+            <p class="flex justify-between mb-1">
+              <span class="font-medium text-gray-500">Client:</span>
+              <span class="truncate max-w-[100px]" title={orderDetail?.clientName || 'N/A'}>
+                {orderDetail?.clientName || 'N/A'}
+              </span>
+            </p>
+          </div>
+        {:else}
+          <!-- Regular tooltip -->
+          <div class="tooltip-content">
+            <div class="tooltip-arrow"></div>
+            <div class="tooltip-inner">
+              <p class="tooltip-title">{soNumber}</p>
+              <div class="tooltip-details">
+                <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
+                <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
+                <p><span>Client:</span> {orderDetail?.clientName || 'N/A'}</p>
+              </div>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </div>
+  {/if}
+{/each}
                           </div>
                         </td>
                       </tr>
@@ -1047,6 +1087,61 @@ onDestroy(() => {
   :global(body) {
     background-color: #f1f5f9;
   }
+
+  /* Add these styles to your existing CSS */
+.expanded-tooltip-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.expanded-tooltip-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.expanded-tooltip-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Adjust the grid layout for SO Numbers tab specifically */
+.so-numbers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+/* Make the expanded card more readable */
+.so-card-expanded {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.so-card-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #2c5282;
+  font-size: 14px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+
+.so-card-body p {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.so-card-body p span:first-child {
+  color: #4a5568;
+  font-weight: 500;
+}
 
   /* Add these styles to your component or global CSS */
   .tooltip-container {
