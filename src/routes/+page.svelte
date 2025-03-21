@@ -16,11 +16,12 @@ import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
 import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 import { fade, fly } from 'svelte/transition';
 import { quintOut } from 'svelte/easing';
-import {  Eye, EyeOff, Filter, LayoutGrid, LayoutList } from 'lucide-svelte';
+import {  Eye, EyeOff, Filter, LayoutGrid, List } from 'lucide-svelte';
 import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
 import { Interface } from 'readline';
 import CustomLoader from '$lib/components/CustomLoader.svelte';
+
 
 
 
@@ -554,39 +555,57 @@ function processModalData(orders: any[], title: string, totalOrders: number): Mo
   };
 }
 
-// Add this to your script section
+// Add this to your script section where you use tooltips
 function handleTooltipPosition(event) {
-  const tooltip = event.currentTarget.querySelector('.tooltip-content');
+  const container = event.currentTarget;
+  const tooltip = container.querySelector('.tooltip-content');
+  const arrow = tooltip?.querySelector('.tooltip-arrow');
   if (!tooltip) return;
   
-  const rect = tooltip.getBoundingClientRect();
+  // Get container coordinates relative to viewport
+  const rect = container.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   
-  // Check if tooltip would be off-screen to the right
-  if (rect.right > viewportWidth - 20) {
-    tooltip.style.left = 'auto';
-    tooltip.style.right = '0';
-    tooltip.style.transform = 'translateX(0) translateY(-2px)';
+  // Position tooltip above the container
+  const tooltipHeight = tooltip.offsetHeight || 150; // Estimated height if not visible
+  
+  // Default position (centered above)
+  let left = rect.left + (rect.width / 2);
+  let top = rect.top - 10; // Gap between container and tooltip
+  
+  // Check and adjust horizontal position to keep tooltip on screen
+  if (left - 125 < 20) { // 125 is half the tooltip width (250/2)
+    left = 20 + 125; // Keep 20px from screen edge + half tooltip width
     
-    // Adjust arrow position
-    const arrow = tooltip.querySelector('.tooltip-arrow');
+    // Position arrow to point at container
     if (arrow) {
-      arrow.style.left = '85%';
+      const arrowLeft = rect.left + (rect.width / 2) - left + 125;
+      arrow.style.left = `${arrowLeft}px`;
+      arrow.style.transform = 'translateX(-50%)';
+    }
+  } 
+  else if (left + 125 > viewportWidth - 20) {
+    left = viewportWidth - 20 - 125;
+    
+    // Position arrow to point at container
+    if (arrow) {
+      const arrowLeft = rect.left + (rect.width / 2) - left + 125;
+      arrow.style.left = `${arrowLeft}px`;
+      arrow.style.transform = 'translateX(-50%)';
+    }
+  }
+  else {
+    // Centered arrow
+    if (arrow) {
+      arrow.style.left = '50%';
+      arrow.style.transform = 'translateX(-50%)';
     }
   }
   
-  // Check if tooltip would be off-screen to the left
-  if (rect.left < 20) {
-    tooltip.style.left = '0';
-    tooltip.style.right = 'auto';
-    tooltip.style.transform = 'translateX(0) translateY(-2px)';
-    
-    // Adjust arrow position
-    const arrow = tooltip.querySelector('.tooltip-arrow');
-    if (arrow) {
-      arrow.style.left = '15%';
-    }
-  }
+  // Set the tooltip position (centered by default)
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top - tooltipHeight}px`;
+  tooltip.style.transform = 'translateX(-50%)';
 }
 
 
@@ -858,7 +877,7 @@ onDestroy(() => {
               <LayoutGrid size={14} class="mr-1" />
               <span>Compact View</span>
             {:else}
-              <LayoutList size={14} class="mr-1" />
+              <List size={14} class="mr-1" />
               <span>Detailed View</span>
             {/if}
           </button>
@@ -896,10 +915,10 @@ onDestroy(() => {
       on:click={() => handleSOClick(soData.SOId)}
     >
       <!-- SO number container -->
-      <div 
-	  class="tooltip-container tooltip-positioning-fix"
-	  on:mouseenter={handleTooltipPosition}
-	>
+    <div 
+      class="tooltip-container"
+      on:mouseenter={handleTooltipPosition}
+    >
         <span>{soNumber}</span>
         {#if agingInfo}
           <span class="block mt-1">
@@ -978,10 +997,10 @@ onDestroy(() => {
       on:click={() => handleSOClick(soData.SOId)}
     >
       <!-- SO number container -->
-      <div 
-	  class="tooltip-container tooltip-positioning-fix"
-	  on:mouseenter={handleTooltipPosition}
-	>
+<div 
+  class="tooltip-container"
+  on:mouseenter={handleTooltipPosition}
+>
         <span>{soNumber}</span>
         {#if agingInfo}
           <span class="block mt-1">
@@ -1024,10 +1043,10 @@ onDestroy(() => {
     class="rounded-lg p-3 text-sm font-medium cursor-pointer transition-colors duration-150 relative {getAgingColor(agingInfo?.isOverdue)}"
     on:click={() => handleSOClick(SOId)}
   >
-	<div 
-	  class="tooltip-container tooltip-positioning-fix"
-	  on:mouseenter={handleTooltipPosition}
-	>
+<div 
+  class="tooltip-container"
+  on:mouseenter={handleTooltipPosition}
+>
       <span>{SONumber}</span>
       {#if agingInfo}
         <span class="block text-xs mt-1">
@@ -1203,8 +1222,6 @@ onDestroy(() => {
   /* Add these styles to your component or global CSS */
   .tooltip-container {
     position: relative;
-    display: inline-block;
-    width: 100%;
   }
 
 .tooltip-container .tooltip-content {
@@ -1238,21 +1255,13 @@ onDestroy(() => {
   left: 15%;
 }
 
-/* Make parent containers handle overflow properly */
-.overflow-x-auto, .overflow-hidden {
-  overflow: visible !important; 
-}
+
 
 table {
   position: relative;
   z-index: 1;
 }
 
-/* Only set overflow on the immediate container */
-.overflow-x-auto > .inline-block, 
-.overflow-hidden > table {
-  overflow-x: auto;
-}
 
 /* Ensure tooltips appear above other elements */
 .tooltip-positioning-fix {
@@ -1261,35 +1270,33 @@ table {
 }
   
 .tooltip-content {
+  /* Use fixed positioning instead of absolute */
+  position: fixed;
+  z-index: 1200; /* Higher than modal z-index (50) */
   visibility: hidden;
-  position: absolute;
-  z-index: 1100; /* Increased z-index further */
-  bottom: calc(100% + 12px);
-  width: 250px;
   background-color: #2d3748;
   color: white;
   border-radius: 8px;
+  width: 250px;
   opacity: 0;
   transition: opacity 0.2s, visibility 0.2s;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-  pointer-events: auto; /* Allow interaction with tooltip */
+  pointer-events: auto;
 }
 
 .tooltip-container {
   position: relative;
 }
   
-  .tooltip-arrow {
-    position: absolute;
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 8px solid #2d3748;
-  }
+.tooltip-arrow {
+  position: absolute;
+  bottom: -8px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #2d3748;
+}
   
   .tooltip-inner {
     padding: 10px;
@@ -1316,13 +1323,10 @@ table {
     color: #a0aec0;
   }
   
-  /* Show the tooltip when hovering over the container */
 .tooltip-container:hover .tooltip-content {
   visibility: visible;
   opacity: 1;
   animation: tooltip-fade-in 0.2s ease-out;
-  transition-delay: 0s;
-pointer-events: auto; /* Enable interaction when visible */
 }
 
 /* Check if tooltip would be off-screen to the right and adjust */
@@ -1403,17 +1407,6 @@ pointer-events: auto; /* Enable interaction when visible */
   font-weight: bold;
   color: #a0aec0;
 }
-
-/* Prevent tooltip from being clipped by overflow containers */
-.overflow-x-auto, .overflow-hidden {
-  overflow: visible !important;
-}
-
-/* Only apply overflow styles to the children */
-.overflow-x-auto > div, .overflow-hidden > div {
-  overflow-x: auto;
-}
-
 
   
   /* Responsive positioning for different screen sizes */
