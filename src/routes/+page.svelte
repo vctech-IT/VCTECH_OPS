@@ -16,7 +16,7 @@ import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
 import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 import { fade, fly } from 'svelte/transition';
 import { quintOut } from 'svelte/easing';
-import {  Eye, EyeOff, Filter, ViewGrid, ViewList } from 'lucide-svelte';
+import {  Eye, EyeOff, Filter, LayoutGrid, LayoutList } from 'lucide-svelte';
 import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
 import { Interface } from 'readline';
@@ -812,9 +812,9 @@ onDestroy(() => {
       >
         <span class="mr-2">{showAllTooltips ? 'Compact View' : 'Detailed View'}</span>
         {#if showAllTooltips}
-          <ViewGrid size={16} />
+          <LayoutGrid size={16} />
         {:else}
-          <ViewList size={16} />
+          <LayoutList size={16} />
         {/if}
       </button>
     </div>
