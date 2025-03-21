@@ -13,7 +13,7 @@ import Tabs from '$lib/components/Tabs.svelte';
 import LineChart from '$lib/components/LineChart.svelte';
 import { faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
-import { goto } from '$app/navigation';
+import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 import { fade, fly } from 'svelte/transition';
 import { quintOut } from 'svelte/easing';
 import {  Filter } from 'lucide-svelte';
@@ -143,6 +143,32 @@ onDestroy(() => {
   saveState();
 });
 
+beforeNavigate(() => {
+  saveState();
+});
+
+afterNavigate(() => {
+  loadState();
+});
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    loadState();
+  } else {
+    saveState();
+  }
+}
+
+onMount(() => {
+  loadState();
+  if (browser) {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+  }
+  if (!modalContent.orderDetails.length) {
+    fetchDashboardData();
+  }
+});
+
 interface ModalContent {
   title: string;
   totalOrders: number;
@@ -200,7 +226,19 @@ function loadState() {
       sortColumn = state.sortColumn;
       sortDirection = state.sortDirection;
       filterCategory = state.filterCategory;
-      modalContent = state.modalContent;
+
+      // Ensure modalContent is properly restored with all required properties
+      if (state.modalContent) {
+        modalContent = {
+          title: state.modalContent.title || 'Modal Title',
+          totalOrders: state.modalContent.totalOrders || 0,
+          totalSum: state.modalContent.totalSum || 0,
+          categorizedData: state.modalContent.categorizedData || { byClient: {}, byCategory: {} },
+          soNumbers: state.modalContent.soNumbers || [],
+          agingData: state.modalContent.agingData || {},
+          orderDetails: state.modalContent.orderDetails || []
+        };
+      }
       
       // Restore dateRange if it exists
       if (state.dateRange) {
