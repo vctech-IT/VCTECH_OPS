@@ -809,19 +809,7 @@ onDestroy(() => {
           {#if activeTab === 0}
             <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
               <!-- Add this button near the top of each tab content, just below the tab headers -->
-              <div class="flex justify-end mb-4">
-                <button 
-                  on:click={toggleAllTooltips} 
-                  class="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors duration-150 shadow-sm"
-                >
-                  <span class="mr-2">{showAllTooltips ? 'Hide' : 'Show'} All Details</span>
-                  {#if showAllTooltips}
-                    <EyeOff size={16} />
-                  {:else}
-                    <Eye size={16} />
-                  {/if}
-                </button>
-              </div>
+
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -872,12 +860,6 @@ onDestroy(() => {
               <span class="font-medium text-gray-500">Amount:</span>
               <span>₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</span>
             </p>
-            <p class="flex justify-between mb-1">
-              <span class="font-medium text-gray-500">Client:</span>
-              <span class="truncate max-w-[100px]" title={orderDetail?.clientName || 'N/A'}>
-                {orderDetail?.clientName || 'N/A'}
-              </span>
-            </p>
           </div>
         {:else}
           <!-- Regular tooltip -->
@@ -897,6 +879,18 @@ onDestroy(() => {
     </div>
   {/if}
 {/each}
+              <div class="flex justify-end mb-4">
+                <button 
+                  on:click={toggleAllTooltips} 
+                  class="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors duration-150 shadow-sm"
+                >
+                  {#if showAllTooltips}
+                    <EyeOff size={16} />
+                  {:else}
+                    <Eye size={16} />
+                  {/if}
+                </button>
+              </div>
                           </div>
                         </td>
                       </tr>
