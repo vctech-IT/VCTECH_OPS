@@ -953,7 +953,7 @@ onDestroy(() => {
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    {#each ['SONumber', 'Reference', 'Client Name', 'Category', 'Amount'] as column}
+                    {#each ['SONumber', 'Reference', 'Amount', 'Client Name', 'Category' ] as column}
                       <th 
                         scope="col" 
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -977,9 +977,10 @@ onDestroy(() => {
                         {order.SONumber}
                       </td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.referenceNumber}</td>
+		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
-                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
+                      
                     </tr>
                   {/each}
                 </tbody>
