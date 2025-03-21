@@ -842,20 +842,27 @@ onDestroy(() => {
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
-            <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
-		    <div class="flex justify-end mt-2 mb-4">
-		      <button 
-		        on:click={toggleAllTooltips} 
-		        class="flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-sm transition-colors duration-150 shadow-sm"
-		        title={showAllTooltips ? "Hide details" : "Show all details"}
-		      >
-		        {#if showAllTooltips}
-		          <LayoutGrid size={16} />
-		        {:else}
-		          <LayoutList size={16} />
-		        {/if}
-		      </button>
-		    </div>
+  <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
+    <div class="flex items-center justify-between bg-gray-50 px-6 py-3">
+      <div class="flex space-x-2">
+        <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</span>
+        <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</span>
+        <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sum</span>
+      </div>
+      <button 
+        on:click={toggleAllTooltips} 
+        class="flex items-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-xs transition-colors duration-150 shadow-sm"
+        title={showAllTooltips ? "Hide details" : "Show all details"}
+      >
+        {#if showAllTooltips}
+          <LayoutGrid size={14} class="mr-1" />
+          <span>Hide Details</span>
+        {:else}
+          <LayoutList size={14} class="mr-1" />
+          <span>Show Details</span>
+        {/if}
+      </button>
+    </div>
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -1197,32 +1204,77 @@ onDestroy(() => {
     display: inline-block;
     width: 100%;
   }
+
+.tooltip-container .tooltip-content {
+  /* Default centered position */
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Handle potential overflow based on position in the grid */
+.tooltip-container:nth-child(3n) .tooltip-content,
+.tooltip-container:nth-child(4n) .tooltip-content {
+  left: auto;
+  right: 0;
+  transform: translateX(0);
+}
+
+.tooltip-container:nth-child(1) .tooltip-content,
+.tooltip-container:nth-child(4n+1) .tooltip-content {
+  left: 0;
+  transform: translateX(0);
+}
+
+/* Adjust arrow position based on tooltip position */
+.tooltip-container:nth-child(3n) .tooltip-arrow,
+.tooltip-container:nth-child(4n) .tooltip-arrow {
+  left: 85%;
+}
+
+.tooltip-container:nth-child(1) .tooltip-arrow,
+.tooltip-container:nth-child(4n+1) .tooltip-arrow {
+  left: 15%;
+}
+
+/* Make parent containers handle overflow properly */
+.overflow-x-auto, .overflow-hidden {
+  overflow: visible !important; 
+}
+
+table {
+  position: relative;
+  z-index: 1;
+}
+
+/* Only set overflow on the immediate container */
+.overflow-x-auto > .inline-block, 
+.overflow-hidden > table {
+  overflow-x: auto;
+}
+
+/* Ensure tooltips appear above other elements */
+.tooltip-positioning-fix {
+  position: relative;
+  z-index: 10;
+}
   
 .tooltip-content {
   visibility: hidden;
   position: absolute;
-  z-index: 1050; /* Increased z-index to ensure it's above other elements */
-  left: 0;
-  transform: translateX(0); /* Changed from -50% for better positioning */
-  bottom: calc(100% + 10px); /* More space above the element */
-  width: 250px; /* Slightly wider for better readability */
+  z-index: 1100; /* Increased z-index further */
+  bottom: calc(100% + 12px);
+  width: 250px;
   background-color: #2d3748;
   color: white;
   border-radius: 8px;
-  padding: 0;
   opacity: 0;
-  transition-delay: 0.2s;
-  transition: opacity 0.2s, transform 0.2s;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
-  pointer-events: none;
-  max-width: 100vw; /* Prevent overflow on small screens */
-pointer-events: none; /* Change this to allow interaction */
+  transition: opacity 0.2s, visibility 0.2s;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  pointer-events: auto; /* Allow interaction with tooltip */
 }
 
 .tooltip-container {
   position: relative;
-  display: inline-block;
-  width: 100%;
 }
   
   .tooltip-arrow {
@@ -1360,11 +1412,7 @@ pointer-events: auto; /* Enable interaction when visible */
   overflow-x: auto;
 }
 
-/* Add this to help with positioning in scrollable containers */
-.tooltip-positioning-fix {
-  position: relative;
-  z-index: 5;
-}
+
   
   /* Responsive positioning for different screen sizes */
   @media (max-width: 640px) {
