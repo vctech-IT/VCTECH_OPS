@@ -555,57 +555,56 @@ function processModalData(orders: any[], title: string, totalOrders: number): Mo
   };
 }
 
-// Add this to your script section where you use tooltips
 function handleTooltipPosition(event) {
   const container = event.currentTarget;
   const tooltip = container.querySelector('.tooltip-content');
-  const arrow = tooltip?.querySelector('.tooltip-arrow');
   if (!tooltip) return;
   
-  // Get container coordinates relative to viewport
-  const rect = container.getBoundingClientRect();
+  // Get container position and viewport dimensions
+  const containerRect = container.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   
-  // Position tooltip above the container
-  const tooltipHeight = tooltip.offsetHeight || 150; // Estimated height if not visible
-  
-  // Default position (centered above)
-  let left = rect.left + (rect.width / 2);
-  let top = rect.top - 10; // Gap between container and tooltip
-  
-  // Check and adjust horizontal position to keep tooltip on screen
-  if (left - 125 < 20) { // 125 is half the tooltip width (250/2)
-    left = 20 + 125; // Keep 20px from screen edge + half tooltip width
-    
-    // Position arrow to point at container
-    if (arrow) {
-      const arrowLeft = rect.left + (rect.width / 2) - left + 125;
-      arrow.style.left = `${arrowLeft}px`;
-      arrow.style.transform = 'translateX(-50%)';
-    }
-  } 
-  else if (left + 125 > viewportWidth - 20) {
-    left = viewportWidth - 20 - 125;
-    
-    // Position arrow to point at container
-    if (arrow) {
-      const arrowLeft = rect.left + (rect.width / 2) - left + 125;
-      arrow.style.left = `${arrowLeft}px`;
-      arrow.style.transform = 'translateX(-50%)';
-    }
-  }
-  else {
-    // Centered arrow
-    if (arrow) {
-      arrow.style.left = '50%';
-      arrow.style.transform = 'translateX(-50%)';
-    }
-  }
-  
-  // Set the tooltip position (centered by default)
-  tooltip.style.left = `${left}px`;
-  tooltip.style.top = `${top - tooltipHeight}px`;
+  // First reset tooltip to default position
+  tooltip.style.left = '50%';
   tooltip.style.transform = 'translateX(-50%)';
+  tooltip.style.visibility = 'visible';
+  tooltip.style.opacity = '0';
+  
+  // Force layout calculation
+  const tooltipRect = tooltip.getBoundingClientRect();
+  
+  // Check left edge
+  if (tooltipRect.left < 10) {
+    tooltip.style.left = '0';
+    tooltip.style.right = 'auto';
+    tooltip.style.transform = 'translateX(0)';
+    
+    // Adjust arrow
+    const arrow = tooltip.querySelector('.tooltip-arrow');
+    if (arrow) {
+      const arrowLeftPos = containerRect.width / 2;
+      arrow.style.left = `${arrowLeftPos}px`;
+      arrow.style.right = 'auto';
+    }
+  }
+  // Check right edge
+  else if (tooltipRect.right > viewportWidth - 10) {
+    tooltip.style.left = 'auto';
+    tooltip.style.right = '0';
+    tooltip.style.transform = 'translateX(0)';
+    
+    // Adjust arrow
+    const arrow = tooltip.querySelector('.tooltip-arrow');
+    if (arrow) {
+      const arrowRightPos = containerRect.width / 2;
+      arrow.style.left = 'auto';
+      arrow.style.right = `${arrowRightPos}px`;
+    }
+  }
+  
+  // Reset visibility
+  tooltip.style.visibility = '';
+  tooltip.style.opacity = '';
 }
 
 
@@ -1219,10 +1218,10 @@ onDestroy(() => {
   font-weight: 500;
 }
 
-  /* Add these styles to your component or global CSS */
-  .tooltip-container {
-    position: relative;
-  }
+.tooltip-container {
+  position: relative;
+  z-index: 10;
+}
 
 .tooltip-container .tooltip-content {
   /* Default centered position */
@@ -1242,6 +1241,22 @@ onDestroy(() => {
 .tooltip-container:nth-child(4n+1) .tooltip-content {
   left: 0;
   transform: translateX(0);
+}
+
+/* Make sure the modal's overflow property doesn't interfere */
+.modal-content {
+  position: relative;
+}
+
+/* This keeps the tooltip visible regardless of overflow settings */
+.overflow-x-auto, .overflow-hidden {
+  overflow: visible !important;
+}
+
+/* Only apply overflow properties to specific child elements */
+.overflow-x-auto > .inline-block, 
+.overflow-hidden > table {
+  overflow-x: auto;
 }
 
 /* Adjust arrow position based on tooltip position */
@@ -1270,23 +1285,22 @@ table {
 }
   
 .tooltip-content {
-  /* Use fixed positioning instead of absolute */
-  position: fixed;
-  z-index: 1200; /* Higher than modal z-index (50) */
-  visibility: hidden;
+  position: absolute;
+  z-index: 1100;
+  bottom: calc(100% + 12px);
+  width: 250px;
   background-color: #2d3748;
   color: white;
   border-radius: 8px;
-  width: 250px;
+  visibility: hidden;
   opacity: 0;
   transition: opacity 0.2s, visibility 0.2s;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-  pointer-events: auto;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-.tooltip-container {
-  position: relative;
-}
+
   
 .tooltip-arrow {
   position: absolute;
