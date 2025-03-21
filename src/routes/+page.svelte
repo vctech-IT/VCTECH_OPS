@@ -16,7 +16,7 @@ import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
 import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 import { fade, fly } from 'svelte/transition';
 import { quintOut } from 'svelte/easing';
-import {  Eye, EyeOff, Filter } from 'lucide-svelte';
+import {  Eye, EyeOff, Filter, ViewGrid, ViewList } from 'lucide-svelte';
 import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
 import { Interface } from 'readline';
@@ -804,12 +804,24 @@ onDestroy(() => {
       
     <div class="bg-white p-4">
       <Tabs tabs={['By Client', 'By Category', 'SO Numbers', 'Detailed View']} bind:activeTab>
+    <div class="flex justify-end mt-2 mb-4">
+      <button 
+        on:click={toggleAllTooltips} 
+        class="flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-sm transition-colors duration-150 shadow-sm"
+        title={showAllTooltips ? "Hide details" : "Show all details"}
+      >
+        <span class="mr-2">{showAllTooltips ? 'Compact View' : 'Detailed View'}</span>
+        {#if showAllTooltips}
+          <ViewGrid size={16} />
+        {:else}
+          <ViewList size={16} />
+        {/if}
+      </button>
+    </div>
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
             <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
-              <!-- Add this button near the top of each tab content, just below the tab headers -->
-
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -879,18 +891,6 @@ onDestroy(() => {
     </div>
   {/if}
 {/each}
-              <div class="flex justify-end mb-4">
-                <button 
-                  on:click={toggleAllTooltips} 
-                  class="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors duration-150 shadow-sm"
-                >
-                  {#if showAllTooltips}
-                    <EyeOff size={16} />
-                  {:else}
-                    <Eye size={16} />
-                  {/if}
-                </button>
-              </div>
                           </div>
                         </td>
                       </tr>
