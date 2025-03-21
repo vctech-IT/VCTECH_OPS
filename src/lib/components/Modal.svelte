@@ -39,7 +39,7 @@
      on:click={handleOutsideClick}
      transition:fade={{duration: 200}}>
   <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-    <div class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle w-full {sizeClasses[size]}"
+    <div class="relative inline-block align-bottom bg-white rounded-lg text-left shadow-xl transform transition-all sm:my-8 sm:align-middle w-full {sizeClasses[size]}"
          transition:fly={{y: 50, duration: 300, easing: quintOut}}>
       <div class="sticky top-0 z-10 bg-white border-b border-gray-200">
         <div class="flex justify-between items-center px-4 py-3">
@@ -58,7 +58,8 @@
       </div>
       <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
         <slot name="header"></slot>
-        <div class="{scrollableContent ? 'max-h-[60vh] overflow-y-auto' : ''}">
+        <!-- Add the modal-content class to identify the scrollable area -->
+        <div class="modal-content {scrollableContent ? 'max-h-[60vh] overflow-y-auto' : ''}">
           <slot></slot>
         </div>
       </div>
