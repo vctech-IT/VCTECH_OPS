@@ -874,6 +874,7 @@ onDestroy(() => {
           <div class="tooltip-inner">
             <p class="tooltip-title">{soNumber}</p>
             <div class="tooltip-details">
+	      <p><span>Client:</span> {orderDetail?.clientName || 'N/A'}</p>
               <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
               <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
             </div>
