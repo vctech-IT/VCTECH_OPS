@@ -387,7 +387,7 @@ async function refreshActivityLogs() {
                   </div>
 
                   <div class="bg-blue-50 p-4 rounded-lg shadow">
-                      <h2 class="text-lg font-semibold text-blue-800 mb-2">To</h2>
+                      <h2 class="text-lg font-semibold text-blue-800 mb-2">Billing Address</h2>
                       <p class="font-medium">{salesOrder.customer_name}</p>
                       <p>{salesOrder.billing_address.address}</p>
                       <p>{salesOrder.billing_address.city}, {salesOrder.billing_address.state} {salesOrder.billing_address.zip}</p>
@@ -396,14 +396,35 @@ async function refreshActivityLogs() {
                   </div>
 
                   <div class="bg-blue-50 p-4 rounded-lg shadow">
-                      <h2 class="text-lg font-semibold text-blue-800 mb-2">Order Info</h2>
-                      <p><strong>SO #:</strong> {salesOrder.salesorder_number}</p>
-                      <p><strong>Ref#:</strong> {salesOrder.reference_number}</p>
-                      <p><strong>SO Category:</strong> {salesOrder.custom_field_hash.cf_so_cat}</p>
-                      <p><strong>Project Manager Name:</strong> {salesOrder.custom_field_hash.cf_project_manager_name}</p>
-                      <p><strong>Delivery Method:</strong> {salesOrder.delivery_method || 'N/A'}</p>
-                      <p><strong>Place of Supply:</strong> {salesOrder.place_of_supply}</p>
-                      <p><strong>Date:</strong> {formatDate(salesOrder.submitted_date)}</p>
+                      <h2 class="text-lg font-semibold text-blue-800 mb-2">Shipping Address</h2>
+                      <p class="font-medium">{salesOrder.shipping_address.attention || salesOrder.customer_name}</p>
+                      <p>{salesOrder.shipping_address.address}</p>
+                      {#if salesOrder.shipping_address.street2}
+                          <p>{salesOrder.shipping_address.street2}</p>
+                      {/if}
+                      <p>{salesOrder.shipping_address.city}, {salesOrder.shipping_address.state} {salesOrder.shipping_address.zip}</p>
+                      <p>{salesOrder.shipping_address.country}</p>
+                      {#if salesOrder.shipping_address.phone}
+                          <p class="mt-2 text-blue-600">Phone: {salesOrder.shipping_address.phone}</p>
+                      {/if}
+                  </div>
+              </div>
+
+              <!-- Order Info Section -->
+              <div class="bg-blue-50 p-4 rounded-lg shadow mt-6">
+                  <h2 class="text-lg font-semibold text-blue-800 mb-2">Order Info</h2>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                          <p><strong>SO #:</strong> {salesOrder.salesorder_number}</p>
+                          <p><strong>Ref#:</strong> {salesOrder.reference_number}</p>
+                          <p><strong>SO Category:</strong> {salesOrder.custom_field_hash.cf_so_cat}</p>
+                          <p><strong>Project Manager Name:</strong> {salesOrder.custom_field_hash.cf_project_manager_name}</p>
+                      </div>
+                      <div>
+                          <p><strong>Delivery Method:</strong> {salesOrder.delivery_method || 'N/A'}</p>
+                          <p><strong>Place of Supply:</strong> {salesOrder.place_of_supply}</p>
+                          <p><strong>Date:</strong> {formatDate(salesOrder.submitted_date)}</p>
+                      </div>
                   </div>
               </div>
 
