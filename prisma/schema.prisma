@@ -245,8 +245,7 @@ model Invoice {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  @@index([invoice_number])
-  @@index([customer_name])
+  @@index([customer_name, invoice_number, reference_number])
   @@index([status])
   @@index([zoho_invoice_id])
 }
