@@ -228,3 +228,25 @@ model ChatMessage {
   @@index([SOId])
   @@index([SONumber])
 }
+
+model Invoice {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  zoho_invoice_id  String   
+  branch_name      String
+  balance          Float
+  total            Float
+  reference_number String
+  date             DateTime
+  invoice_number   String   
+  customer_name    String
+  status           String
+  due_date         DateTime
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([invoice_number])
+  @@index([customer_name])
+  @@index([status])
+  @@index([zoho_invoice_id])
+}
