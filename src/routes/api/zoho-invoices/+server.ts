@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -13,16 +13,20 @@ export const GET: RequestHandler = async ({ url }) => {
     const sortDirection = url.searchParams.get('sortDirection') || 'desc';
 
     // Prepare where clause for searching
-    const whereClause = searchTerm ? {
-      OR: [
-        { customer_name: { contains: searchTerm, mode: 'insensitive' } },
-        { invoice_number: { contains: searchTerm, mode: 'insensitive' } },
-        { reference_number: { contains: searchTerm, mode: 'insensitive' } }
-      ]
-    } : {};
+    const whereClause: Prisma.InvoiceWhereInput = {
+      OR: searchTerm 
+        ? [
+            { customer_name: { contains: searchTerm, mode: 'insensitive' } },
+            { invoice_number: { contains: searchTerm, mode: 'insensitive' } },
+            { reference_number: { contains: searchTerm, mode: 'insensitive' } }
+          ]
+        : undefined
+    };
 
     // Prepare orderBy clause
-    const orderBy = { [sortColumn]: sortDirection };
+    const orderBy: Prisma.InvoiceOrderByWithRelationInput = {
+      [sortColumn]: sortDirection
+    };
 
     // Fetch total count first
     const total = await prisma.invoice.count({ where: whereClause });
@@ -49,18 +53,20 @@ export const GET: RequestHandler = async ({ url }) => {
   }
 };
 
-// Additional route for full export
-export const GET: RequestHandler = async ({ url }) => {
+// Separate export for export route
+export const exportInvoices: RequestHandler = async ({ url }) => {
   try {
     const searchTerm = url.searchParams.get('search') || '';
 
-    const whereClause = searchTerm ? {
-      OR: [
-        { customer_name: { contains: searchTerm, mode: 'insensitive' } },
-        { invoice_number: { contains: searchTerm, mode: 'insensitive' } },
-        { reference_number: { contains: searchTerm, mode: 'insensitive' } }
-      ]
-    } : {};
+    const whereClause: Prisma.InvoiceWhereInput = {
+      OR: searchTerm 
+        ? [
+            { customer_name: { contains: searchTerm, mode: 'insensitive' } },
+            { invoice_number: { contains: searchTerm, mode: 'insensitive' } },
+            { reference_number: { contains: searchTerm, mode: 'insensitive' } }
+          ]
+        : undefined
+    };
 
     // Fetch all matching invoices for export
     const invoices = await prisma.invoice.findMany({
