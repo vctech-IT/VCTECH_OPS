@@ -95,7 +95,7 @@
 
   // Navigate to Invoice Details
   function navigateToInvoiceDetails(invoiceId: string) {
-    goto(`/invoices/${invoiceId}`);
+    goto(`/invoice/${invoiceId}`);
   }
 
   // Pagination Improvements
