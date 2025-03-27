@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { fade } from 'svelte/transition';
+  import { goto } from '$app/navigation';
+  import { Cog, Download, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-svelte';
   import * as XLSX from 'xlsx';
   import jsPDF from 'jspdf';
   import 'jspdf-autotable';
-  import { Cog, Download, Filter, Search } from 'lucide-svelte';
-  
+
   interface Invoice {
     id: string;
     zoho_invoice_id: string;
@@ -22,7 +23,7 @@
 
   // Pagination and Filtering State
   let currentPage = 1;
-  const itemsPerPage = 200;
+  const itemsPerPage = 10; // Reduced to improve readability
   let totalInvoices = 0;
   let sortColumn: keyof Invoice | null = null;
   let sortDirection: 'asc' | 'desc' = 'asc';
@@ -47,27 +48,15 @@
     maxTotal: null as number | null
   };
 
-  // Column Configuration
-  let visibleColumns = [
-    'date', 'invoice_number', 'customer_name', 'reference_number', 
-    'total', 'status', 'due_date', 'balance', 'branch_name'
-  ];
-  let originalColumnOrder = [...visibleColumns];
+  // Unique status values
+  let availableStatuses: string[] = [];
 
-  // Refs for outside click handling
-  let columnSelectorRef: HTMLDivElement;
-  let downloadMenuRef: HTMLDivElement;
-  let customizeButtonRef: HTMLButtonElement;
-  let downloadButtonRef: HTMLButtonElement;
-  let filterModalRef: HTMLDivElement;
-
-  // Fetch Invoices
+  // Fetch Invoices with improved filtering
   async function fetchInvoices() {
     isLoading = true;
     error = null;
 
     try {
-      // Construct query parameters
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
@@ -91,6 +80,11 @@
       const data = await response.json();
       invoices = data.invoices;
       totalInvoices = data.total;
+
+      // Extract unique statuses if not already done
+      if (availableStatuses.length === 0) {
+        availableStatuses = [...new Set(invoices.map(inv => inv.status))];
+      }
     } catch (e: any) {
       error = e.message;
       invoices = [];
@@ -99,9 +93,38 @@
     }
   }
 
-  // Search and Filter Handler
-  function handleSearchAndFilter() {
-    currentPage = 1; // Reset to first page on new search/filter
+  // Navigate to Invoice Details
+  function navigateToInvoiceDetails(invoiceId: string) {
+    goto(`/invoices/${invoiceId}`);
+  }
+
+  // Pagination Improvements
+  function getPaginationRange() {
+    const totalPages = Math.ceil(totalInvoices / itemsPerPage);
+    const currentPageIndex = currentPage;
+    let startPage = Math.max(1, currentPageIndex - 2);
+    let endPage = Math.min(totalPages, currentPageIndex + 2);
+
+    // Adjust range to always show 5 pages if possible
+    if (endPage - startPage < 4) {
+      if (startPage === 1) {
+        endPage = Math.min(totalPages, 5);
+      } else {
+        startPage = Math.max(1, totalPages - 4);
+      }
+    }
+
+    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+  }
+
+  // Status Filter Toggle
+  function toggleStatusFilter(status: string) {
+    if (filters.status.includes(status)) {
+      filters.status = filters.status.filter(s => s !== status);
+    } else {
+      filters.status = [...filters.status, status];
+    }
+    currentPage = 1;
     fetchInvoices();
   }
 
@@ -114,393 +137,215 @@
       minTotal: null,
       maxTotal: null
     };
-    handleSearchAndFilter();
-  }
-
-  // Pagination Handler
-  function changePage(page: number) {
-    currentPage = page;
+    searchTerm = '';
+    currentPage = 1;
     fetchInvoices();
-  }
-
-  function handleSort(column: string) {
-  const typedColumn = column as keyof Invoice;
-  if (sortColumn === typedColumn) {
-    // Toggle sort direction if same column
-    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortColumn = typedColumn;
-    sortDirection = 'asc';
-  }
-  fetchInvoices();
-}
-
-  // Utility Functions
-  function formatDate(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB');
-  }
-  
-  function formatCurrency(amount: number) {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2
-    }).format(amount);
-  }
-
-  // Download Handlers
-  function handleDownload(format: string) {
-    async function downloadFullData() {
-      try {
-        const params = new URLSearchParams({
-          search: searchTerm,
-          status: filters.status.join(','),
-          branch: filters.branch.join(','),
-          startDate: filters.dateRange.start,
-          endDate: filters.dateRange.end,
-          minTotal: filters.minTotal?.toString() || '',
-          maxTotal: filters.maxTotal?.toString() || ''
-        });
-
-        const response = await fetch(`/api/zoho-invoices/export?${params}`);
-        const data = await response.json();
-        
-        const formattedData = data.invoices.map(invoice => {
-          let row: any = {};
-          visibleColumns.forEach(column => {
-            if (column === 'date' || column === 'due_date') {
-              row[column] = formatDate(invoice[column]);
-            } else if (column === 'total' || column === 'balance') {
-              row[column] = formatCurrency(invoice[column]);
-            } else {
-              row[column] = invoice[column];
-            }
-          });
-          return row;
-        });
-
-        if (format === 'CSV') downloadCSV(formattedData);
-        else if (format === 'EXCEL') downloadExcel(formattedData);
-        else if (format === 'PDF') downloadPDF(formattedData);
-      } catch (error) {
-        console.error('Download failed:', error);
-      }
-    }
-
-    downloadFullData();
-    showDownloadOptions = false;
-  }
-
-  // Download Utility Functions
-  function downloadCSV(data: any[]) {
-    const headers = visibleColumns;
-    const csv = [
-      headers.join(','),
-      ...data.map(row => headers.map(header => JSON.stringify(row[header])).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'invoices.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  }
-
-  function downloadExcel(data: any[]) {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Invoices');
-    XLSX.writeFile(workbook, 'invoices.xlsx');
-  }
-
-  function downloadPDF(data: any[]) {
-    const doc = new jsPDF();
-    doc.autoTable({
-      head: [visibleColumns],
-      body: data.map(row => visibleColumns.map(col => row[col])),
-    });
-    doc.save('invoices.pdf');
-  }
-
-  // Column Selector
-  function toggleColumn(column: string) {
-    if (visibleColumns.includes(column)) {
-      visibleColumns = visibleColumns.filter(c => c !== column);
-    } else {
-      const index = originalColumnOrder.findIndex(c => c === column);
-      const insertIndex = visibleColumns.findIndex(c => originalColumnOrder.indexOf(c) > index);
-      if (insertIndex === -1) {
-        visibleColumns = [...visibleColumns, column];
-      } else {
-        visibleColumns = [
-          ...visibleColumns.slice(0, insertIndex),
-          column,
-          ...visibleColumns.slice(insertIndex)
-        ];
-      }
-    }
-  }
-
-  // Event Handlers
-  function toggleDownloadOptions(event: MouseEvent) {
-    event.stopPropagation();
-    showDownloadOptions = !showDownloadOptions;
-  }
-
-  function toggleColumnSelector(event: MouseEvent) {
-    event.stopPropagation();
-    isColumnSelectorOpen = !isColumnSelectorOpen;
-  }
-
-  function handleClickOutside(event: MouseEvent) {
-    // Close dropdown menus when clicking outside
-    if (columnSelectorRef && !columnSelectorRef.contains(event.target as Node)) {
-      isColumnSelectorOpen = false;
-    }
-    if (downloadMenuRef && !downloadMenuRef.contains(event.target as Node)) {
-      showDownloadOptions = false;
-    }
   }
 
   // Lifecycle Hooks
   onMount(() => {
     fetchInvoices();
-    document.addEventListener('click', handleClickOutside);
-  });
-
-  onDestroy(() => {
-    document.removeEventListener('click', handleClickOutside);
   });
 
   // Computed Properties
   $: totalPages = Math.ceil(totalInvoices / itemsPerPage);
-  $: pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
 </script>
 
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-8 max-w-7xl">
   {#if isLoading}
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
       <div class="loader"></div>
     </div>
-  {:else}
-    <div class="mb-4 flex justify-between items-center">
-      <div class="relative w-full mr-4">
-        <input
-          type="text"
-          placeholder="Search invoices (Customer, Invoice, Reference)..."
-          bind:value={searchTerm}
-          on:input={handleSearchAndFilter}
-          class="w-full px-4 py-2 pl-10 rounded-lg border border-gray-300"
-        />
-        <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
-          <Search size={20} class="text-gray-400" />
-        </div>
+  {/if}
+
+  <div class="mb-4 flex justify-between items-center">
+    <div class="relative w-full mr-4">
+      <input
+        type="text"
+        placeholder="Search invoices..."
+        bind:value={searchTerm}
+        on:input={() => {
+          currentPage = 1;
+          fetchInvoices();
+        }}
+        class="w-full px-4 py-2 pl-10 rounded-lg border border-gray-300"
+      />
+      <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
+        <Search size={20} class="text-gray-400" />
       </div>
-      
-      <div class="flex space-x-2">
+    </div>
+    
+    <div class="flex space-x-2">
+      <button 
+        on:click={() => isFilterModalOpen = true}
+        class="p-2 rounded-full hover:bg-gray-200 relative"
+      >
+        <Filter size={24} />
+        {#if filters.status.length > 0}
+          <span class="absolute top-0 right-0 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs">
+            {filters.status.length}
+          </span>
+        {/if}
+      </button>
+    </div>
+  </div>
+
+  <!-- Invoices Table -->
+  {#if invoices.length === 0}
+    <div class="text-center py-8 text-gray-500">
+      <p>No invoices found. Try a different search term.</p>
+      {#if filters.status.length > 0 || searchTerm}
         <button 
-          on:click={() => isFilterModalOpen = true}
-          class="p-2 rounded-full hover:bg-gray-200"
+          on:click={resetFilters}
+          class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
-          <Filter size={24} />
+          Reset Filters
         </button>
-        
+      {/if}
+    </div>
+  {:else}
+    <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-blue-500 text-white">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Invoice #</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Customer</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Total</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Balance</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {#each invoices as invoice (invoice.id)}
+            <tr 
+              class="hover:bg-blue-50 cursor-pointer transition-colors duration-200"
+              on:click={() => navigateToInvoiceDetails(invoice.zoho_invoice_id)}
+              transition:fade
+            >
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                {new Date(invoice.date).toLocaleDateString()}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                {invoice.invoice_number}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                {invoice.customer_name}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                {invoice.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 
+                 invoice.status === 'sent' || invoice.status === 'open' ? 'bg-green-100 text-green-800' : 
+                 invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : 
+                 'bg-gray-100 text-gray-800'}">
+                  {invoice.status}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                ₹{invoice.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                ₹{invoice.balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex justify-between items-center mt-4">
+      <div class="text-sm text-gray-600">
+        Showing {(currentPage - 1) * itemsPerPage + 1} - 
+        {Math.min(currentPage * itemsPerPage, totalInvoices)} 
+        of {totalInvoices} invoices
+      </div>
+      <div class="flex items-center space-x-2">
         <button 
-          on:click={toggleDownloadOptions} 
-          bind:this={downloadButtonRef}
-          class="p-2 rounded-full hover:bg-gray-200"
+          disabled={currentPage === 1}
+          on:click={() => {
+            if (currentPage > 1) {
+              currentPage--;
+              fetchInvoices();
+            }
+          }}
+          class="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download size={24} />
+          <ChevronLeft size={20} />
         </button>
-        
+
+        {#each getPaginationRange() as pageNum}
+          <button 
+            class="px-3 py-1 rounded {currentPage === pageNum 
+              ? 'bg-blue-500 text-white' 
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
+            on:click={() => {
+              currentPage = pageNum;
+              fetchInvoices();
+            }}
+          >
+            {pageNum}
+          </button>
+        {/each}
+
         <button 
-          on:click={toggleColumnSelector}
-          bind:this={customizeButtonRef}
-          class="p-2 rounded-full hover:bg-gray-200"
+          disabled={currentPage === totalPages}
+          on:click={() => {
+            if (currentPage < totalPages) {
+              currentPage++;
+              fetchInvoices();
+            }
+          }}
+          class="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Cog size={24} />
+          <ChevronRight size={20} />
         </button>
       </div>
     </div>
-
-    <!-- Download Options Dropdown -->
-    {#if showDownloadOptions}
-      <div 
-        bind:this={downloadMenuRef} 
-        class="absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
-      >
-        <div class="py-1">
-{#each ['CSV', 'EXCEL', 'PDF'] as format (format)}
-  <button 
-    on:click={() => handleDownload(format)}
-    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-  >
-    {format}
-  </button>
-{/each}
-        </div>
-      </div>
-    {/if}
-
-    <!-- Column Selector Dropdown -->
-    {#if isColumnSelectorOpen}
-      <div 
-        bind:this={columnSelectorRef}
-        class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10"
-      >
-        <div class="py-1">
-          {#each originalColumnOrder as column (column)}
-            <label 
-              class="flex items-center px-4 py-2 hover:bg-gray-100"
-            >
-              <input
-                type="checkbox"
-                checked={visibleColumns.includes(column)}
-                on:change={() => toggleColumn(column)}
-                class="mr-2"
-              />
-              <span>{column.replace('_', ' ')}</span>
-            </label>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    <!-- Invoices Table -->
-    {#if invoices.length === 0}
-      <div class="text-center py-8 text-gray-500">
-        <p>No invoices found. Try a different search term.</p>
-      </div>
-    {:else}
-      <div class="overflow-x-auto bg-white shadow-md rounded-lg">
-        <table class="min-w-full divide-y divide-blue-200">
-          <thead class="bg-blue-500">
-            <tr>
-              {#each visibleColumns as column}
-                <th 
-                  class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap cursor-pointer"
-                  on:click={() => handleSort(column)}
-                >
-                  {column.replace('_', ' ')}
-                  {#if sortColumn === column}
-                    {sortDirection === 'asc' ? '▲' : '▼'}
-                  {/if}
-                </th>
-              {/each}
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-blue-100">
-            {#each invoices as invoice, index (invoice.invoice_number)}
-              <tr 
-                class="hover:bg-blue-50 cursor-pointer transition-colors duration-200 {index % 2 === 0 ? 'bg-blue-50' : 'bg-white'}"
-                transition:fade
-              >
-                {#each visibleColumns as column}
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {#if column === 'date' || column === 'due_date'}
-                      {formatDate(invoice[column])}
-                    {:else if column === 'total' || column === 'balance'}
-                      {formatCurrency(invoice[column])}
-                    {:else if column === 'status'}
-                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      {invoice[column] === 'draft' ? 'bg-yellow-100 text-yellow-800' : 
-                       invoice[column] === 'sent' || invoice[column] === 'open' ? 'bg-green-100 text-green-800' : 
-                       'bg-gray-100 text-gray-800'}">
-                        {invoice[column]}
-                      </span>
-                    {:else}
-                      {invoice[column]}
-                    {/if}
-                  </td>
-                {/each}
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div class="flex justify-between items-center mt-4">
-        <div>
-          <span>Total Invoices: {totalInvoices}</span>
-        </div>
-        <div class="flex space-x-2">
-          {#each pageNumbers as pageNum}
-            <button 
-              class="px-3 py-1 {currentPage === pageNum ? 'bg-blue-500 text-white' : 'bg-gray-200'} rounded"
-              on:click={() => changePage(pageNum)}
-            >
-              {pageNum}
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
   {/if}
 
-  <!-- Filter Modal (To be implemented) -->
+  <!-- Status Filter Modal -->
   {#if isFilterModalOpen}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg w-96">
         <h2 class="text-xl font-bold mb-4">Filter Invoices</h2>
-        <!-- Filter inputs -->
-        <button 
-          on:click={() => isFilterModalOpen = false}
-          class="mt-4 w-full bg-blue-500 text-white py-2 rounded"
-        >
-          Apply Filters
-        </button>
+        
+        <div class="mb-4">
+          <h3 class="text-md font-semibold mb-2">Status</h3>
+          <div class="flex flex-wrap gap-2">
+            {#each availableStatuses as status}
+              <button
+                on:click={() => toggleStatusFilter(status)}
+                class="px-3 py-1 rounded-full text-sm {filters.status.includes(status) 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
+              >
+                {status}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <div class="flex justify-between">
+          <button 
+            on:click={resetFilters}
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+          >
+            Reset
+          </button>
+          <button 
+            on:click={() => isFilterModalOpen = false}
+            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Apply
+          </button>
+        </div>
       </div>
     </div>
   {/if}
 </div>
 
 <style>
-  .bg-blue-50 {
-    background-color: #eff6ff;
-  }
-  .bg-blue-100 {
-    background-color: #dbeafe;
-  }
-  .bg-blue-200 {
-    background-color: #bfdbfe;
-  }
-  .bg-blue-500 {
-    background-color: #3b82f6;
-  }
-  .hover\:bg-blue-50:hover {
-    background-color: #eff6ff;
-  }
-  .divide-blue-100 > :not([hidden]) ~ :not([hidden]) {
-    border-color: #dbeafe;
-  }
-  .divide-blue-200 > :not([hidden]) ~ :not([hidden]) {
-    border-color: #bfdbfe;
-  }
-  input[type="checkbox"]:disabled + span {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  .container {
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .shadow-md {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  }
-  .rounded-lg {
-    border-radius: 0.5rem;
-  }
-  
   .loader {
     border: 5px solid #f3f3f3;
     border-top: 5px solid #3498db;
@@ -509,7 +354,7 @@
     height: 50px;
     animation: spin 1s linear infinite;
   }
-  
+
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
