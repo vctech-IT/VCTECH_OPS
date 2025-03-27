@@ -123,17 +123,17 @@
     fetchInvoices();
   }
 
-  // Sorting Handler
-  function handleSort(column: keyof Invoice) {
-    if (sortColumn === column) {
-      // Toggle sort direction if same column
-      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortColumn = column;
-      sortDirection = 'asc';
-    }
-    fetchInvoices();
+  function handleSort(column: string) {
+  const typedColumn = column as keyof Invoice;
+  if (sortColumn === typedColumn) {
+    // Toggle sort direction if same column
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortColumn = typedColumn;
+    sortDirection = 'asc';
   }
+  fetchInvoices();
+}
 
   // Utility Functions
   function formatDate(dateString: string) {
@@ -337,14 +337,14 @@
         class="absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
       >
         <div class="py-1">
-        {#each ['CSV', 'EXCEL', 'PDF'] as format (format)}
-          <button 
-            on:click={() => handleDownload(format)}
-            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          >
-            {format}
-          </button>
-        {/each}
+{#each ['CSV', 'EXCEL', 'PDF'] as format (format)}
+  <button 
+    on:click={() => handleDownload(format)}
+    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+  >
+    {format}
+  </button>
+{/each}
         </div>
       </div>
     {/if}
@@ -356,9 +356,8 @@
         class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10"
       >
         <div class="py-1">
-          {originalColumnOrder.map(column => (
+          {#each originalColumnOrder as column (column)}
             <label 
-              key={column} 
               class="flex items-center px-4 py-2 hover:bg-gray-100"
             >
               <input
@@ -369,7 +368,7 @@
               />
               <span>{column.replace('_', ' ')}</span>
             </label>
-          ))}
+          {/each}
         </div>
       </div>
     {/if}
@@ -387,7 +386,7 @@
               {#each visibleColumns as column}
                 <th 
                   class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap cursor-pointer"
-                  on:click={() => handleSort(column as keyof Invoice)}
+                  on:click={() => handleSort(column)}
                 >
                   {column.replace('_', ' ')}
                   {#if sortColumn === column}
@@ -516,4 +515,3 @@
     100% { transform: rotate(360deg); }
   }
 </style>
-
