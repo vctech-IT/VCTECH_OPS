@@ -4,63 +4,138 @@
   import * as XLSX from 'xlsx';
   import jsPDF from 'jspdf';
   import 'jspdf-autotable';
-  import { Cog, Download } from 'lucide-svelte';
+  import { Cog, Download, Filter, Search } from 'lucide-svelte';
   
-interface Invoice {
-  id: string;
-  zoho_invoice_id: string;
-  branch_name: string;
-  balance: number;
-  total: number;
-  reference_number: string;
-  date: string;
-  invoice_number: string;
-  customer_name: string;
-  status: string;
-  due_date: string;
-}
-  
+  interface Invoice {
+    id: string;
+    zoho_invoice_id: string;
+    branch_name: string;
+    balance: number;
+    total: number;
+    reference_number: string;
+    date: string;
+    invoice_number: string;
+    customer_name: string;
+    status: string;
+    due_date: string;
+  }
+
+  // Pagination and Filtering State
+  let currentPage = 1;
+  const itemsPerPage = 200;
+  let totalInvoices = 0;
+  let sortColumn: keyof Invoice | null = null;
+  let sortDirection: 'asc' | 'desc' = 'asc';
+
+  // Data State
   let invoices: Invoice[] = [];
-  let error: string | null = null;
   let searchTerm = '';
+  
+  // UI States
+  let error: string | null = null;
+  let isLoading = false;
   let showDownloadOptions = false;
   let isColumnSelectorOpen = false;
-  let isLoading = true;
-  
+  let isFilterModalOpen = false;
+
+  // Filters
+  let filters = {
+    status: [] as string[],
+    branch: [] as string[],
+    dateRange: { start: '', end: '' },
+    minTotal: null as number | null,
+    maxTotal: null as number | null
+  };
+
+  // Column Configuration
   let visibleColumns = [
-    'date', 'invoice_number', 'customer_name', 'reference_number', 'total',
-    'status', 'due_date', 'balance', 'branch_name'
+    'date', 'invoice_number', 'customer_name', 'reference_number', 
+    'total', 'status', 'due_date', 'balance', 'branch_name'
   ];
   let originalColumnOrder = [...visibleColumns];
+
+  // Refs for outside click handling
   let columnSelectorRef: HTMLDivElement;
   let downloadMenuRef: HTMLDivElement;
   let customizeButtonRef: HTMLButtonElement;
   let downloadButtonRef: HTMLButtonElement;
+  let filterModalRef: HTMLDivElement;
 
-  let filteredInvoices: Invoice[] = [];
+  // Fetch Invoices
+  async function fetchInvoices() {
+    isLoading = true;
+    error = null;
 
-
-  onMount(async () => {
     try {
-      const response = await fetch('/api/zoho-invoices');
-      if (!response.ok) throw new Error('Failed to fetch invoices');
+      // Construct query parameters
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        search: searchTerm,
+        sortColumn: sortColumn || 'date',
+        sortDirection: sortDirection,
+        status: filters.status.join(','),
+        branch: filters.branch.join(','),
+        startDate: filters.dateRange.start,
+        endDate: filters.dateRange.end,
+        minTotal: filters.minTotal?.toString() || '',
+        maxTotal: filters.maxTotal?.toString() || ''
+      });
+
+      const response = await fetch(`/api/zoho-invoices?${params}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoices');
+      }
+
       const data = await response.json();
       invoices = data.invoices;
-      filteredInvoices = [...invoices];
+      totalInvoices = data.total;
     } catch (e: any) {
       error = e.message;
+      invoices = [];
     } finally {
       isLoading = false;
     }
-    document.addEventListener('click', handleClickOutside);
-    document.addEventListener('keydown', handleKeyPress);
-  });
-  
-  onDestroy(() => {
-    document.removeEventListener('click', handleClickOutside);
-    document.removeEventListener('keydown', handleKeyPress);
-  });
+  }
 
+  // Search and Filter Handler
+  function handleSearchAndFilter() {
+    currentPage = 1; // Reset to first page on new search/filter
+    fetchInvoices();
+  }
+
+  // Reset Filters
+  function resetFilters() {
+    filters = {
+      status: [],
+      branch: [],
+      dateRange: { start: '', end: '' },
+      minTotal: null,
+      maxTotal: null
+    };
+    handleSearchAndFilter();
+  }
+
+  // Pagination Handler
+  function changePage(page: number) {
+    currentPage = page;
+    fetchInvoices();
+  }
+
+  // Sorting Handler
+  function handleSort(column: keyof Invoice) {
+    if (sortColumn === column) {
+      // Toggle sort direction if same column
+      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortColumn = column;
+      sortDirection = 'asc';
+    }
+    fetchInvoices();
+  }
+
+  // Utility Functions
   function formatDate(dateString: string) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB');
@@ -73,74 +148,51 @@ interface Invoice {
       minimumFractionDigits: 2
     }).format(amount);
   }
-  
-  function normalizeString(str: string): string {
-    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
-  }
 
-  function handleSearch() {
-    const normalizedSearch = normalizeString(searchTerm);
-    filteredInvoices = invoices.filter(invoice => {
-      const normalizedInvoiceNumber = normalizeString(invoice.invoice_number);
-      const normalizedCustomerName = normalizeString(invoice.customer_name);
-      const normalizedReferenceNumber = normalizeString(invoice.reference_number);
-      const normalizedFullInvoiceNumber = normalizeString(`vctin${invoice.invoice_number}`);
-
-      return normalizedInvoiceNumber.includes(normalizedSearch) ||
-             normalizedCustomerName.includes(normalizedSearch) ||
-             normalizedReferenceNumber.includes(normalizedSearch) ||
-             normalizedFullInvoiceNumber.includes(normalizedSearch);
-    });
-
-    // Additional check for "VCT/IN/" format
-    const parts = searchTerm.split('/');
-    if (parts.length === 3 && parts[0].toLowerCase() === 'vct' && parts[1].toLowerCase() === 'in') {
-      const invoiceNumber = parts[2];
-      filteredInvoices = filteredInvoices.filter(invoice => 
-        normalizeString(invoice.invoice_number).includes(normalizeString(invoiceNumber))
-      );
-    }
-  }
-
-  $: {
-    handleSearch();
-  }
-
-
-  function toggleDownloadOptions(event: MouseEvent) {
-    event.stopPropagation();
-    showDownloadOptions = !showDownloadOptions;
-    if (showDownloadOptions) {
-      isColumnSelectorOpen = false;
-    }
-  }
-
+  // Download Handlers
   function handleDownload(format: string) {
-    const data = filteredInvoices.map(invoice => {
-      let row: any = {};
-      visibleColumns.forEach(column => {
-        if (column === 'date' || column === 'due_date') {
-          row[column] = formatDate(invoice[column]);
-        } else if (column === 'total' || column === 'balance') {
-          row[column] = formatCurrency(invoice[column]);
-        } else {
-          row[column] = invoice[column];
-        }
-      });
-      return row;
-    });
+    async function downloadFullData() {
+      try {
+        const params = new URLSearchParams({
+          search: searchTerm,
+          status: filters.status.join(','),
+          branch: filters.branch.join(','),
+          startDate: filters.dateRange.start,
+          endDate: filters.dateRange.end,
+          minTotal: filters.minTotal?.toString() || '',
+          maxTotal: filters.maxTotal?.toString() || ''
+        });
 
-    if (format === 'CSV') {
-      downloadCSV(data);
-    } else if (format === 'EXCEL') {
-      downloadExcel(data);
-    } else if (format === 'PDF') {
-      downloadPDF(data);
+        const response = await fetch(`/api/zoho-invoices/export?${params}`);
+        const data = await response.json();
+        
+        const formattedData = data.invoices.map(invoice => {
+          let row: any = {};
+          visibleColumns.forEach(column => {
+            if (column === 'date' || column === 'due_date') {
+              row[column] = formatDate(invoice[column]);
+            } else if (column === 'total' || column === 'balance') {
+              row[column] = formatCurrency(invoice[column]);
+            } else {
+              row[column] = invoice[column];
+            }
+          });
+          return row;
+        });
+
+        if (format === 'CSV') downloadCSV(formattedData);
+        else if (format === 'EXCEL') downloadExcel(formattedData);
+        else if (format === 'PDF') downloadPDF(formattedData);
+      } catch (error) {
+        console.error('Download failed:', error);
+      }
     }
 
+    downloadFullData();
     showDownloadOptions = false;
   }
 
+  // Download Utility Functions
   function downloadCSV(data: any[]) {
     const headers = visibleColumns;
     const csv = [
@@ -177,6 +229,7 @@ interface Invoice {
     doc.save('invoices.pdf');
   }
 
+  // Column Selector
   function toggleColumn(column: string) {
     if (visibleColumns.includes(column)) {
       visibleColumns = visibleColumns.filter(c => c !== column);
@@ -195,143 +248,219 @@ interface Invoice {
     }
   }
 
+  // Event Handlers
+  function toggleDownloadOptions(event: MouseEvent) {
+    event.stopPropagation();
+    showDownloadOptions = !showDownloadOptions;
+  }
+
   function toggleColumnSelector(event: MouseEvent) {
     event.stopPropagation();
     isColumnSelectorOpen = !isColumnSelectorOpen;
-    if (isColumnSelectorOpen) {
-      showDownloadOptions = false;
-    }
   }
 
   function handleClickOutside(event: MouseEvent) {
-    if (!columnSelectorRef?.contains(event.target as Node) && 
-        !customizeButtonRef?.contains(event.target as Node)) {
+    // Close dropdown menus when clicking outside
+    if (columnSelectorRef && !columnSelectorRef.contains(event.target as Node)) {
       isColumnSelectorOpen = false;
     }
-    if (!downloadMenuRef?.contains(event.target as Node) && 
-        !downloadButtonRef?.contains(event.target as Node)) {
+    if (downloadMenuRef && !downloadMenuRef.contains(event.target as Node)) {
       showDownloadOptions = false;
     }
   }
 
-  function handleKeyPress(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      isColumnSelectorOpen = false;
-      showDownloadOptions = false;
-    }
-  }
+  // Lifecycle Hooks
+  onMount(() => {
+    fetchInvoices();
+    document.addEventListener('click', handleClickOutside);
+  });
+
+  onDestroy(() => {
+    document.removeEventListener('click', handleClickOutside);
+  });
+
+  // Computed Properties
+  $: totalPages = Math.ceil(totalInvoices / itemsPerPage);
+  $: pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
 </script>
 
 <div class="container mx-auto px-4 py-8">
-{#if isLoading}
-  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
-    <div class="loader"></div>
-  </div>
-{:else if error}
-  <p class="text-red-500">{error}</p>
-{:else}
-  <div class="mb-4 flex justify-between items-center">
-    <input
-      type="text"
-      placeholder="Search invoices..."
-      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      bind:value={searchTerm}
-      on:input={handleSearch}
-    />
-    <div class="ml-4 flex relative">
-      <button 
-        on:click={toggleDownloadOptions} 
-        class="p-2 rounded-full hover:bg-gray-200 mr-2"
-        bind:this={downloadButtonRef}
-      >
-        <Download size={24} />
-      </button>
-      {#if showDownloadOptions}
-        <div bind:this={downloadMenuRef} class="absolute right-0 mt-10 w-36 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-          <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-            <button on:click={() => handleDownload('CSV')} class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left" role="menuitem">CSV</button>
-            <button on:click={() => handleDownload('EXCEL')} class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left" role="menuitem">EXCEL</button>
-            <button on:click={() => handleDownload('PDF')} class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left" role="menuitem">PDF</button>
-          </div>
+  {#if isLoading}
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+      <div class="loader"></div>
+    </div>
+  {:else}
+    <div class="mb-4 flex justify-between items-center">
+      <div class="relative w-full mr-4">
+        <input
+          type="text"
+          placeholder="Search invoices (Customer, Invoice, Reference)..."
+          bind:value={searchTerm}
+          on:input={handleSearchAndFilter}
+          class="w-full px-4 py-2 pl-10 rounded-lg border border-gray-300"
+        />
+        <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
+          <Search size={20} class="text-gray-400" />
         </div>
-      {/if}
-      <button 
-        on:click={toggleColumnSelector}
-        class="p-2 rounded-full hover:bg-gray-200"
-        bind:this={customizeButtonRef}
+      </div>
+      
+      <div class="flex space-x-2">
+        <button 
+          on:click={() => isFilterModalOpen = true}
+          class="p-2 rounded-full hover:bg-gray-200"
+        >
+          <Filter size={24} />
+        </button>
+        
+        <button 
+          on:click={toggleDownloadOptions} 
+          bind:this={downloadButtonRef}
+          class="p-2 rounded-full hover:bg-gray-200"
+        >
+          <Download size={24} />
+        </button>
+        
+        <button 
+          on:click={toggleColumnSelector}
+          bind:this={customizeButtonRef}
+          class="p-2 rounded-full hover:bg-gray-200"
+        >
+          <Cog size={24} />
+        </button>
+      </div>
+    </div>
+
+    <!-- Download Options Dropdown -->
+    {#if showDownloadOptions}
+      <div 
+        bind:this={downloadMenuRef} 
+        class="absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
       >
-        <Cog size={24} />
-      </button>
-      {#if isColumnSelectorOpen}
-        <div bind:this={columnSelectorRef} class="absolute right-0 mt-10 w-48 bg-white rounded-md shadow-lg z-10">
-          <div class="py-1">
-            {#each originalColumnOrder as column}
-              <label class="flex items-center px-4 py-2 hover:bg-gray-100">
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.includes(column)}
-                  on:change={() => toggleColumn(column)}
-                  class="mr-2"
-                />
-                <span>{column.replace('_', ' ')}</span>
-              </label>
-            {/each}
-            <button
-              on:click={() => {
-                isColumnSelectorOpen = false;
-              }}
+        <div class="py-1">
+          {['CSV', 'EXCEL', 'PDF'].map(format => (
+            <button 
+              key={format}
+              on:click={() => handleDownload(format)}
               class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
-              Close
+              {format}
             </button>
-          </div>
+          ))}
         </div>
-      {/if}
-    </div>
-  </div>
+      </div>
+    {/if}
 
-  {#if filteredInvoices.length === 0}
-    <p>No invoices found.</p>
-  {:else}
-    <div class="overflow-x-auto bg-white shadow-md rounded-lg">
-      <table class="min-w-full divide-y divide-blue-200">
-        <thead class="bg-blue-500">
-          <tr>
-            {#each visibleColumns as column}
-              <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap">{column.replace('_', ' ')}</th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-blue-100">
-          {#each filteredInvoices as invoice, index (invoice.invoice_number)}
-            <tr 
-              class="hover:bg-blue-50 cursor-pointer transition-colors duration-200 {index % 2 === 0 ? 'bg-blue-50' : 'bg-white'}"
-              transition:fade
+    <!-- Column Selector Dropdown -->
+    {#if isColumnSelectorOpen}
+      <div 
+        bind:this={columnSelectorRef}
+        class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10"
+      >
+        <div class="py-1">
+          {originalColumnOrder.map(column => (
+            <label 
+              key={column} 
+              class="flex items-center px-4 py-2 hover:bg-gray-100"
             >
+              <input
+                type="checkbox"
+                checked={visibleColumns.includes(column)}
+                on:change={() => toggleColumn(column)}
+                class="mr-2"
+              />
+              <span>{column.replace('_', ' ')}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Invoices Table -->
+    {#if invoices.length === 0}
+      <div class="text-center py-8 text-gray-500">
+        <p>No invoices found. Try a different search term.</p>
+      </div>
+    {:else}
+      <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+        <table class="min-w-full divide-y divide-blue-200">
+          <thead class="bg-blue-500">
+            <tr>
               {#each visibleColumns as column}
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {#if column === 'date' || column === 'due_date'}
-                    {formatDate(invoice[column])}
-                  {:else if column === 'total' || column === 'balance'}
-                    {formatCurrency(invoice[column])}
-                  {:else if column === 'status'}
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    {invoice[column] === 'draft' ? 'bg-yellow-100 text-yellow-800' : 
-                     invoice[column] === 'sent' || invoice[column] === 'open' ? 'bg-green-100 text-green-800' : 
-                     'bg-gray-100 text-gray-800'}">
-                      {invoice[column]}
-                    </span>
-                  {:else}
-                    {invoice[column]}
+                <th 
+                  class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap cursor-pointer"
+                  on:click={() => handleSort(column as keyof Invoice)}
+                >
+                  {column.replace('_', ' ')}
+                  {#if sortColumn === column}
+                    {sortDirection === 'asc' ? '▲' : '▼'}
                   {/if}
-                </td>
+                </th>
               {/each}
             </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-blue-100">
+            {#each invoices as invoice, index (invoice.invoice_number)}
+              <tr 
+                class="hover:bg-blue-50 cursor-pointer transition-colors duration-200 {index % 2 === 0 ? 'bg-blue-50' : 'bg-white'}"
+                transition:fade
+              >
+                {#each visibleColumns as column}
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {#if column === 'date' || column === 'due_date'}
+                      {formatDate(invoice[column])}
+                    {:else if column === 'total' || column === 'balance'}
+                      {formatCurrency(invoice[column])}
+                    {:else if column === 'status'}
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      {invoice[column] === 'draft' ? 'bg-yellow-100 text-yellow-800' : 
+                       invoice[column] === 'sent' || invoice[column] === 'open' ? 'bg-green-100 text-green-800' : 
+                       'bg-gray-100 text-gray-800'}">
+                        {invoice[column]}
+                      </span>
+                    {:else}
+                      {invoice[column]}
+                    {/if}
+                  </td>
+                {/each}
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-between items-center mt-4">
+        <div>
+          <span>Total Invoices: {totalInvoices}</span>
+        </div>
+        <div class="flex space-x-2">
+          {#each pageNumbers as pageNum}
+            <button 
+              class="px-3 py-1 {currentPage === pageNum ? 'bg-blue-500 text-white' : 'bg-gray-200'} rounded"
+              on:click={() => changePage(pageNum)}
+            >
+              {pageNum}
+            </button>
           {/each}
-        </tbody>
-      </table>
-    </div>
+        </div>
+      </div>
     {/if}
+  {/if}
+
+  <!-- Filter Modal (To be implemented) -->
+  {#if isFilterModalOpen}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div class="bg-white p-6 rounded-lg w-96">
+        <h2 class="text-xl font-bold mb-4">Filter Invoices</h2>
+        <!-- Filter inputs -->
+        <button 
+          on:click={() => isFilterModalOpen = false}
+          class="mt-4 w-full bg-blue-500 text-white py-2 rounded"
+        >
+          Apply Filters
+        </button>
+      </div>
+    </div>
   {/if}
 </div>
 
