@@ -6,17 +6,19 @@
   import 'jspdf-autotable';
   import { Cog, Download } from 'lucide-svelte';
   
-  interface Invoice {
-      branch_name: string;
-      balance: number;
-      total: number;
-      reference_number: string;
-      date: string;
-      invoice_number: string;
-      customer_name: string;
-      status: string;
-      due_date: string;
-  }
+interface Invoice {
+  id: string;
+  zoho_invoice_id: string;
+  branch_name: string;
+  balance: number;
+  total: number;
+  reference_number: string;
+  date: string;
+  invoice_number: string;
+  customer_name: string;
+  status: string;
+  due_date: string;
+}
   
   let invoices: Invoice[] = [];
   let error: string | null = null;
