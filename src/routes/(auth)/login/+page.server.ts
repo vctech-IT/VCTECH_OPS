@@ -10,6 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 }
 
 const login: Action = async ({ cookies, request }) => {
+  try {
     const data = await request.formData()
     const username = data.get('username')
     const password = data.get('password')
@@ -55,22 +56,26 @@ const login: Action = async ({ cookies, request }) => {
       },
     })
 
-  cookies.set('session', authenticatedUser.userAuthToken, {
-    // send cookie for every page
-    path: '/',
-    // server side only cookie so you can't use `document.cookie`
-    httpOnly: true,
-    // only requests from same site can send cookies
-    // https://developer.mozilla.org/en-US/docs/Glossary/CSRF
-    sameSite: 'strict',
-    // only sent over HTTPS in production
-    secure: process.env.NODE_ENV === 'production',
-    // set cookie to expire after a month
-    maxAge: 60 * 60 * 24 * 30,
-  })
+    cookies.set('session', authenticatedUser.userAuthToken, {
+      // send cookie for every page
+      path: '/',
+      // server side only cookie so you can't use `document.cookie`
+      httpOnly: true,
+      // only requests from same site can send cookies
+      // https://developer.mozilla.org/en-US/docs/Glossary/CSRF
+      sameSite: 'strict',
+      // only sent over HTTPS in production
+      secure: process.env.NODE_ENV === 'production',
+      // set cookie to expire after a month
+      maxAge: 60 * 60 * 24 * 30,
+    })
 
     console.log(`User logged in successfully: ${username}`);
-    throw redirect(302, '/')
+    return { success: true };
+  } catch (error) {
+    console.error('Login error:', error);
+    return fail(500, { message: 'An unexpected error occurred' })
+  }
 }
 
 export const actions: Actions = { login }
