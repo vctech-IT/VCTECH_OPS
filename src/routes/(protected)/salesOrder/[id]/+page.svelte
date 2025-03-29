@@ -48,7 +48,7 @@ let documentPreviewUrl = '';
 function openDocument(document: any) {
     selectedDocument = document;
     // Use our server endpoint for preview
-    documentPreviewUrl = `/api/zoho-document/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
+    documentPreviewUrl = `/api/document-proxy/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
     showDocumentPreview = true;
 }
 
@@ -60,7 +60,7 @@ async function downloadDocument(document: any) {
         // Create a temporary anchor element
         const link = document.createElement('a');
         // Use our server endpoint with download purpose header
-        const url = `/api/zoho-document/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
+        const url = `/api/document-proxy/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
         
         // Fetch with custom header to indicate download purpose
         const response = await fetch(url, {
