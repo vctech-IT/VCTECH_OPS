@@ -11,7 +11,7 @@ export async function GET({ params, fetch }) {
         
         // Make the request to Zoho
         const response = await fetch(
-            `https://www.zohoapis.in/books/v3/salesorders/${id}/attachment/${documentId}?organization_id=60005679410`, 
+            `https://www.zohoapis.in/books/v3/salesorders/${id}/attachment?organization_id=60005679410&document_id=${documentId}`, 
             {
                 headers: {
                     'Authorization': `Zoho-oauthtoken ${token}`
