@@ -30,6 +30,90 @@ let isLoadingNavigate = false;
 let submissionSuccessful = false;
 let token = '';
 let isLoadingAttachments = false;
+let showDocumentPreview = false;
+let selectedDocument: any = null;
+let documentPreviewUrl = '';
+
+    // Function to check if file can be previewed
+    function canPreviewFile(fileName: string): boolean {
+        const lowerFileName = fileName.toLowerCase();
+        return lowerFileName.endsWith('.pdf') || 
+               lowerFileName.endsWith('.jpg') || 
+               lowerFileName.endsWith('.jpeg') || 
+               lowerFileName.endsWith('.png') || 
+               lowerFileName.endsWith('.gif');
+    }
+    
+// Function to open document preview
+function openDocument(document: any) {
+    selectedDocument = document;
+    // Use our server endpoint for preview
+    documentPreviewUrl = `/api/zoho-document/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
+    showDocumentPreview = true;
+}
+
+// Function to download document with proper filename
+async function downloadDocument(document: any) {
+    try {
+        isLoading = true;
+        
+        // Create a temporary anchor element
+        const link = document.createElement('a');
+        // Use our server endpoint with download purpose header
+        const url = `/api/zoho-document/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
+        
+        // Fetch with custom header to indicate download purpose
+        const response = await fetch(url, {
+            headers: {
+                'purpose': 'download'
+            }
+        });
+        
+        if (!response.ok) throw new Error('Download failed');
+        
+        // Create a blob from the response
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        
+        // Set up the download
+        link.href = objectUrl;
+        link.download = document.file_name;
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the object URL
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
+        
+    } catch (error) {
+        console.error('Error downloading document:', error);
+        alert('Failed to download document. Please try again.');
+    } finally {
+        isLoading = false;
+    }
+}
+    
+    // Function to close document preview
+    function closeDocumentPreview() {
+        showDocumentPreview = false;
+        selectedDocument = null;
+        documentPreviewUrl = '';
+    }
+    
+    
+    // Fetch token when component mounts
+    onMount(async () => {
+        try {
+            const response = await fetch('/api/zohoAuthToken');
+            const data = await response.json();
+            token = data.token;
+            console.log("Token fetched successfully");
+        } catch (error) {
+            console.error('Error fetching auth token:', error);
+        }
+    });
 
 
 
@@ -206,24 +290,6 @@ let Stage0Data: any;
 let Stage3Data: any;
 let Stage4Data: any;
 
-onMount(async () => {
-    try {
-        isLoadingAttachments = true;
-        const response = await fetch('/api/zohoAuthToken');
-        const data = await response.json();
-        token = data.token;
-        isLoadingAttachments = false;
-    } catch (error) {
-        console.error('Error fetching auth token:', error);
-        isLoadingAttachments = false;
-    }
-});
-
-function viewDocument(document) {
-    // You might want to expand the iframe or open in a viewer
-    // For now, we're just using the iframe directly in the list
-    console.log(`Viewing document: ${document.file_name}`);
-}
 
 onMount(() => {
   logStore.loadLogs();
@@ -233,21 +299,6 @@ onMount(() => {
 
   return unsubscribe;
 });
-
-async function downloadDocument(document: any) {
-    try {
-        isLoading = true;
-        
-        // Open the document in a new tab for download
-        window.open(`https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/attachment/${document.document_id}?organization_id=60005679410&authtoken=${token}`, '_blank');
-        
-    } catch (error) {
-        console.error('Error downloading document:', error);
-        alert('Failed to download document. Please try again.');
-    } finally {
-        isLoading = false;
-    }
-}
 
 
 
@@ -525,69 +576,97 @@ async function refreshActivityLogs() {
                   </div>
               </div>
 
-          <!-- Attachments Section -->
-          <div class="bg-white p-4 rounded-lg shadow mt-6">
-              <div class="flex items-center justify-between">
-                  <h2 class="text-lg font-semibold text-blue-800">Attachments</h2>
-                  <button 
-                      class="text-blue-600 hover:bg-blue-50 font-medium py-2 px-3 rounded-full transition duration-200 ease-in-out focus:outline-none"
-                      on:click={toggleDocumentsDropdown}
-                  >
-                      {#if showDocumentsDropdown}
-                          <ChevronUp size={20} />
-                      {:else}
-                          <ChevronDown size={20} />
-                      {/if}
-                  </button>
-              </div>
-              
-              {#if showDocumentsDropdown}
-                  <div class="mt-3 space-y-2" transition:fade={{ duration: 200 }}>
-                      {#if salesOrder.documents && salesOrder.documents.length > 0}
-                          {#each salesOrder.documents as document}
-                              <div class="border border-gray-200 rounded-lg overflow-hidden">
-                                  <div class="flex items-center justify-between p-3 bg-gray-50">
-                                      <div class="flex items-center">
-                                          <div class="bg-blue-100 p-2 rounded-lg mr-3">
-                                              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                              </svg>
+              <!-- Attachments Section -->
+              <div class="bg-white p-4 rounded-lg shadow mt-6">
+                  <div class="flex items-center justify-between">
+                      <h2 class="text-lg font-semibold text-blue-800">Attachments</h2>
+                      <button 
+                          class="text-blue-600 hover:bg-blue-50 font-medium py-2 px-3 rounded-full transition duration-200 ease-in-out focus:outline-none"
+                          on:click={toggleDocumentsDropdown}
+                      >
+                          {#if showDocumentsDropdown}
+                              <ChevronUp size={20} />
+                          {:else}
+                              <ChevronDown size={20} />
+                          {/if}
+                      </button>
+                  </div>
+                  
+                  {#if showDocumentsDropdown}
+                      <div class="mt-3 space-y-2" transition:fade={{ duration: 200 }}>
+                          {#if salesOrder.documents && salesOrder.documents.length > 0}
+                              {#each salesOrder.documents as document}
+                                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                      <div class="flex items-center justify-between p-3 bg-gray-50">
+                                          <div class="flex items-center">
+                                              <div class="bg-blue-100 p-2 rounded-lg mr-3">
+                                                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                  </svg>
+                                              </div>
+                                              <div>
+                                                  <p class="font-medium text-gray-800">{document.file_name}</p>
+                                                  <p class="text-sm text-gray-500">
+                                                      {document.uploaded_on_date_formatted} • 
+                                                      {document.file_size_formatted} • 
+                                                      Uploaded by {document.uploaded_by}
+                                                  </p>
+                                              </div>
                                           </div>
-                                          <div>
-                                              <p class="font-medium text-gray-800">{document.file_name}</p>
-                                              <p class="text-sm text-gray-500">
-                                                  {document.uploaded_on_date_formatted} • 
-                                                  {document.file_size_formatted} • 
-                                                  Uploaded by {document.uploaded_by}
-                                              </p>
+                                          <div class="flex space-x-2">
+                                              <!-- View button for PDF, images -->
+                                              {#if canPreviewFile(document.file_name)}
+                                                  <button 
+                                                      class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md text-sm transition duration-200"
+                                                      on:click={() => openDocument(document)}
+                                                  >
+                                                      View
+                                                  </button>
+                                              {/if}
+                                              <!-- Download button for all files -->
+                                              <button 
+                                                  class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded-md text-sm transition duration-200"
+                                                  on:click={() => downloadDocument(document)}
+                                              >
+                                                  Download
+                                              </button>
                                           </div>
                                       </div>
-
                                   </div>
-                                  
-                                <!-- PDF Preview Frame -->
-                                <div class="w-full h-64 border-t border-gray-200">
-                                    {#if isLoadingAttachments}
-                                        <div class="w-full h-full flex items-center justify-center">
-                                            <div class="loader">Loading...</div>
-                                        </div>
-                                    {:else}
-                                        <iframe 
-                                            title={document.file_name}
-                                            src={`/api/document-proxy/${salesOrder.salesorder_id}/${document.document_id}`}
-                                            class="w-full h-full"
-                                            loading="lazy"
-                                        ></iframe>
-                                    {/if}
-                                </div>
-                              </div>
-                          {/each}
-                      {:else}
-                          <p class="text-gray-500 italic py-3">No attachments available for this sales order.</p>
-                      {/if}
+                              {/each}
+                          {:else}
+                              <p class="text-gray-500 italic py-3">No attachments available for this sales order.</p>
+                          {/if}
+                      </div>
+                  {/if}
+              </div>
+
+              <!-- Document preview modal -->
+              {#if showDocumentPreview && selectedDocument}
+                  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" on:click={closeDocumentPreview}>
+                      <div class="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] flex flex-col" on:click|stopPropagation>
+                          <div class="flex justify-between items-center p-4 border-b">
+                              <h3 class="text-lg font-semibold">{selectedDocument.file_name}</h3>
+                              <button 
+                                  class="text-gray-500 hover:text-gray-700"
+                                  on:click={closeDocumentPreview}
+                              >
+                                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                  </svg>
+                              </button>
+                          </div>
+                          <div class="flex-1 overflow-auto p-1">
+                              <iframe 
+                                  title={selectedDocument.file_name}
+                                  src={documentPreviewUrl}
+                                  class="w-full h-full border-0"
+                                  sandbox="allow-scripts allow-same-origin"
+                              ></iframe>
+                          </div>
+                      </div>
                   </div>
               {/if}
-          </div>
           </div>
       </div>
   </div>
