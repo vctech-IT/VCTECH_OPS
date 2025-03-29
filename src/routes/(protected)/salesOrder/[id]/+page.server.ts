@@ -37,21 +37,6 @@ export const load: PageServerLoad = async ({ params, fetch, locals }) => {
     const data = await response.json();
     const salesOrder: SalesOrder = data.salesorder;
 
-        // Fetch attachments for the sales order
-        const attachmentsResponse = await fetch(`https://www.zohoapis.in/books/v3/salesorders/${salesOrderId}/attachment?organization_id=60005679410`, {
-            headers: {
-                'Authorization': `Zoho-oauthtoken ${token}`
-            }
-        });
-        
-        let attachments = [];
-        if (attachmentsResponse.ok) {
-            const attachmentsData = await attachmentsResponse.json();
-            attachments = attachmentsData.attachments || [];
-        }
-
-
-
         // Fetch activity logs from your database
          const activityLogs = await db.activityLog.findMany({
         where: { salesOrderId: salesOrder.salesorder_number },
@@ -73,7 +58,6 @@ export const load: PageServerLoad = async ({ params, fetch, locals }) => {
         salesOrder,
         activityLogs,
         currentStage,
-        isDropped: stage0Data?.isDropped || false,
-        attachments
+        isDropped: stage0Data?.isDropped || false
     };
 };
