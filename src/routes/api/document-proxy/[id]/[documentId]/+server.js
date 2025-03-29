@@ -1,40 +1,57 @@
-// src/routes/api/document-proxy/[id]/[documentId]/+server.js
-import { json } from '@sveltejs/kit';
+// src/routes/api/zoho-document/[salesOrderId]/[documentId]/+server.js
+import { error } from '@sveltejs/kit';
 
-export async function GET({ params, fetch }) {
-    const { id, documentId } = params;
+export async function GET({ params, fetch, request, url }) {
+    const { salesOrderId, documentId } = params;
+    const organizationId = '60005679410';
     
     try {
         // Get the token
         const tokenResponse = await fetch('/api/zohoAuthToken');
         const { token } = await tokenResponse.json();
         
-        // Make the request to Zoho
-        const response = await fetch(
-            `https://www.zohoapis.in/books/v3/salesorders/${id}/attachment?organization_id=60005679410&document_id=${documentId}`, 
-            {
-                headers: {
-                    'Authorization': `Zoho-oauthtoken ${token}`
-                }
-            }
-        );
-        
-        if (!response.ok) {
-            throw new Error(`Error fetching document: ${response.status}`);
+        if (!token) {
+            throw error(401, 'Authentication token not available');
         }
         
-        // Get the document data as an array buffer
+        // Get the filename from the query parameter (if provided)
+        const filename = url.searchParams.get('filename') || 'document';
+        
+        // Make the request to Zoho
+        const documentUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrderId}/documents/${documentId}?organization_id=${organizationId}`;
+        
+        const response = await fetch(documentUrl, {
+            headers: {
+                'Authorization': `Zoho-oauthtoken ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            console.error(`Error from Zoho API: ${response.status} ${response.statusText}`);
+            throw error(response.status, 'Failed to fetch document from Zoho');
+        }
+        
+        // Get the document content and headers
         const documentData = await response.arrayBuffer();
         const contentType = response.headers.get('content-type') || 'application/octet-stream';
         
-        // Return the document with proper content type
+        // Create headers for the response
+        const headers = new Headers();
+        headers.set('Content-Type', contentType);
+        
+        // Set content disposition for download with the proper filename
+        const disposition = request.headers.get('purpose') === 'download' 
+            ? `attachment; filename="${encodeURIComponent(filename)}"` 
+            : 'inline';
+        
+        headers.set('Content-Disposition', disposition);
+        
         return new Response(documentData, {
-            headers: {
-                'Content-Type': contentType
-            }
+            status: 200,
+            headers
         });
-    } catch (error) {
-        console.error('Error proxying document:', error);
-        return json({ error: 'Failed to fetch document' }, { status: 500 });
+    } catch (err) {
+        console.error('Document proxy error:', err);
+        throw error(500, 'Failed to retrieve document');
     }
 }
