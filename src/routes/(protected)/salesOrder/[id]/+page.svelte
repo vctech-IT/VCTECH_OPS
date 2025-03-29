@@ -52,48 +52,38 @@ function openDocument(document: any) {
     showDocumentPreview = true;
 }
 
-// Function to download document with proper filename
 async function downloadDocument(document: any) {
     try {
         isLoading = true;
-        
-        // Create a temporary anchor element
-        const link = document.createElement('a');
-        // Use our server endpoint with download purpose header
+
         const url = `/api/document-proxy/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
-        
-        // Fetch with custom header to indicate download purpose
+
         const response = await fetch(url, {
-            headers: {
-                'purpose': 'download'
-            }
+            headers: { 'purpose': 'download' }
         });
-        
+
         if (!response.ok) throw new Error('Download failed');
-        
-        // Create a blob from the response
+
         const blob = await response.blob();
+        const link = document.createElement('a');
         const objectUrl = URL.createObjectURL(blob);
-        
-        // Set up the download
+
         link.href = objectUrl;
         link.download = document.file_name;
-        
-        // Trigger download
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
-        // Clean up the object URL
+
         setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
-        
+
     } catch (error) {
         console.error('Error downloading document:', error);
-        alert('Failed to download document. Please try again.');
+        alert('Failed to download document.');
     } finally {
         isLoading = false;
     }
 }
+
     
     // Function to close document preview
     function closeDocumentPreview() {
