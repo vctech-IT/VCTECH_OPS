@@ -191,11 +191,6 @@ function toggleCategory(category: string) {
       isLoadingNavigate = false;
   }
 
-  function downloadDocument(doc: any) {
-      // Implement actual download logic here
-      console.log(`Downloading ${doc.file_name}`);
-      // You might want to use a service or API call to handle the actual download
-  }
   let activeTab = 'details';
   function switchTab(tab: any) {
       activeTab = tab;
@@ -203,13 +198,22 @@ function toggleCategory(category: string) {
 
 let soCategory = "";
 let projectManagerName = "";
+let token = '';
 
 let salesOrderLogs: LogEntry[] = [];
 let Stage0Data: any;
 let Stage3Data: any;
 let Stage4Data: any;
 
-
+onMount(async () => {
+    try {
+        const response = await fetch('/api/zohoAuthToken');
+        const data = await response.json();
+        token = data.token;
+    } catch (error) {
+        console.error('Error fetching auth token:', error);
+    }
+});
 
 onMount(() => {
   logStore.loadLogs();
@@ -220,40 +224,22 @@ onMount(() => {
   return unsubscribe;
 });
 
-async function downloadAttachment(attachment: any) {
+async function downloadDocument(document: any) {
     try {
         isLoading = true;
-        const token = await getToken(fetch);
         
-        // Get the file from Zoho API
-        const response = await fetch(`${attachment.document_id}?organization_id=60005679410`, {
-            headers: {
-                'Authorization': `Zoho-oauthtoken ${token}`
-            }
-        });
+        // Open the document in a new tab for download
+        window.open(`https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/attachment/${document.document_id}?organization_id=60005679410&authtoken=${token}`, '_blank');
         
-        if (!response.ok) {
-            throw new Error('Failed to download attachment');
-        }
-        
-        // Create blob and download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = attachment.file_name;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
     } catch (error) {
-        console.error('Error downloading attachment:', error);
-        alert('Failed to download attachment. Please try again.');
+        console.error('Error downloading document:', error);
+        alert('Failed to download document. Please try again.');
     } finally {
         isLoading = false;
     }
 }
+
+
 
 function handleFieldUpdate(fieldName: string, oldValue: string, newValue: string) {
   const logEntry: LogEntry = {
@@ -530,43 +516,59 @@ async function refreshActivityLogs() {
               </div>
 
               <!-- Attachments -->
-               <div class="bg-white p-4 rounded-lg shadow mt-6">
+            <div class="bg-white p-4 rounded-lg shadow mt-6">
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-blue-800">Attachments</h2>
-                      <button 
-                          class="text-blue-600 hover:bg-blue-50 font-medium py-2 px-3 rounded-full transition duration-200 ease-in-out focus:outline-none"
-                          on:click={toggleDocumentsDropdown}
-                      >
-                          {#if showDocumentsDropdown}
-                              <ChevronUp size={20} />
-                          {:else}
-                              <ChevronDown size={20} />
-                          {/if}
-                      </button>
+                    <button 
+                        class="text-blue-600 hover:bg-blue-50 font-medium py-2 px-3 rounded-full transition duration-200 ease-in-out focus:outline-none"
+                        on:click={toggleDocumentsDropdown}
+                    >
+                        {#if showDocumentsDropdown}
+                            <ChevronUp size={20} />
+                        {:else}
+                            <ChevronDown size={20} />
+                        {/if}
+                    </button>
                 </div>
                 
                 {#if showDocumentsDropdown}
                     <div class="mt-3 space-y-2" transition:fade={{ duration: 200 }}>
-                        {#if data.attachments && data.attachments.length > 0}
-                            {#each data.attachments as attachment}
-                                <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                                    <div class="flex items-center">
-                                        <div class="bg-blue-100 p-2 rounded-lg mr-3">
-                                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                            </svg>
+                        {#if salesOrder.documents && salesOrder.documents.length > 0}
+                            {#each salesOrder.documents as document}
+                                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="flex items-center justify-between p-3 bg-gray-50">
+                                        <div class="flex items-center">
+                                            <div class="bg-blue-100 p-2 rounded-lg mr-3">
+                                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-800">{document.file_name}</p>
+                                                <p class="text-sm text-gray-500">
+                                                    {document.uploaded_on_date_formatted} • 
+                                                    {document.file_size_formatted} • 
+                                                    Uploaded by {document.uploaded_by}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p class="font-medium text-gray-800">{attachment.file_name}</p>
-                                            <p class="text-sm text-gray-500">{new Date(attachment.created_time).toLocaleDateString()} • {(attachment.file_size / 1024).toFixed(2)} KB</p>
-                                        </div>
+                                        <button 
+                                            class="text-blue-600 hover:text-blue-800 p-2"
+                                            on:click={() => downloadDocument(document)}
+                                        >
+                                            <Download size={20} />
+                                        </button>
                                     </div>
-                                    <button 
-                                        class="text-blue-600 hover:text-blue-800 p-2"
-                                        on:click={() => downloadAttachment(attachment)}
-                                    >
-                                        <Download size={20} />
-                                    </button>
+                                    
+                                    <!-- PDF Preview Frame -->
+                                    <div class="w-full h-64 border-t border-gray-200">
+                                        <iframe 
+                                            title={document.file_name}
+                                            src={`https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/attachment/${document.document_id}?organization_id=60005679410&authtoken=${token}`}
+                                            class="w-full h-full"
+                                            loading="lazy"
+                                        ></iframe>
+                                    </div>
                                 </div>
                             {/each}
                         {:else}
