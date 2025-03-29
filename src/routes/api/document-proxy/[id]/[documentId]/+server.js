@@ -18,7 +18,7 @@ export async function GET({ params, fetch, request, url }) {
         const filename = url.searchParams.get('filename') || 'document';
         
         // Make the request to Zoho
-        const documentUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrderId}/documents/${documentId}?organization_id=${organizationId}`;
+        const documentUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrderId}/documents/${documentId}?organization_id=60005679410`;
         
         const response = await fetch(documentUrl, {
             headers: {
