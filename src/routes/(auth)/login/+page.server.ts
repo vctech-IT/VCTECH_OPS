@@ -71,7 +71,7 @@ const login: Action = async ({ cookies, request }) => {
     })
 
     console.log(`User logged in successfully: ${username}`);
-    throw redirect(302, '/dashboard');
+    return { success: true };
   } catch (error) {
     console.error('Login error:', error);
     return fail(500, { message: 'An unexpected error occurred' })
