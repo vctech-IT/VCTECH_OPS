@@ -1,3 +1,4 @@
+<!-- login1/+page.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import Swiper from 'swiper';
@@ -32,17 +33,14 @@
     });
   });
 
-  const handleSubmit = () => {
-    loading = true;
-    return async ({ result }: { result: any }) => {
-      // Simulate a delay to show the loader (remove this in production)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      invalidateAll();
-      await applyAction(result);
-      loading = false;
-    };
+const handleSubmit = () => {
+  loading = true;
+  return async ({ result }: { result: any }) => {
+    invalidateAll();
+    await applyAction(result);
+    loading = false;
   };
+};
 </script>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
