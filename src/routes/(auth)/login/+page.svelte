@@ -35,9 +35,13 @@
 const handleSubmit = () => {
   loading = true;
   return async ({ result }: { result: any }) => {
-    invalidateAll();
-    await applyAction(result);
-    loading = false;
+    if (result.type === 'success') {
+      window.location.href = '/dashboard'; // Immediate redirect on success
+    } else {
+      invalidateAll();
+      await applyAction(result);
+      loading = false;
+    }
   };
 };
 </script>
