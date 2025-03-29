@@ -36,7 +36,7 @@ const handleSubmit = () => {
   loading = true;
   return async ({ result }: { result: any }) => {
     if (result.type === 'success') {
-      window.location.href = '/dashboard'; // Immediate redirect on success
+      window.location.href = '/'; // Immediate redirect on success
     } else {
       invalidateAll();
       await applyAction(result);
