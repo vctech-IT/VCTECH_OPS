@@ -10,16 +10,6 @@
 
   export let data;
 
-
-  // Reactive variables from data
-  $: invoices = data.invoices;
-  $: totalInvoices = data.totalInvoices;
-  $: availableStatuses = data.availableStatuses;
-  $: availableBranches = data.availableBranches;
-  $: currentPage = data.page;
-  $: itemsPerPage = data.limit;
-  $: error = data.error;
-
   // UI States
   let isLoading = false;
   let isFilterModalOpen = false;
@@ -56,6 +46,22 @@ onMount(() => {
 onDestroy(() => {
   window.removeEventListener('keydown', handleKeydown);
 });
+
+// Calculate days until due date
+function getDaysUntilDue(dueDate: string | Date): number {
+  const due = new Date(dueDate);
+  const today = new Date();
+  
+  // Reset time portion for accurate day calculation
+  due.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  
+  // Calculate difference in milliseconds and convert to days
+  const diffTime = due.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+}
 
   // Update URL and refetch data when filters change
   function updateFilters() {
@@ -216,12 +222,22 @@ function getPaginationRange() {
   }
 
   // Computed Properties
+  // Reactive variables from data
+  $: invoices = data.invoices;
+  $: totalInvoices = data.totalInvoices;
+  $: availableStatuses = data.availableStatuses;
+  $: availableBranches = data.availableBranches;
+  $: currentPage = data.page;
+  $: itemsPerPage = data.limit;
+  $: error = data.error;
   $: totalPages = Math.ceil(totalInvoices / itemsPerPage);
   $: hasBranchFilters = selectedBranches.length > 0;
   $: hasStatusFilters = selectedStatuses.length > 0;
   $: hasDateFilters = startDate || endDate;
   $: hasTotalFilters = minTotal || maxTotal;
   $: hasAnyFilters = hasStatusFilters || hasBranchFilters || hasDateFilters || hasTotalFilters;
+  $: isLoading = $navigating !== null;
+
 </script>
 
 <div class="container mx-auto px-4 py-8 max-w-7xl">
@@ -420,9 +436,23 @@ function getPaginationRange() {
                 {invoice.branch_name}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {getStatusClasses(invoice.status)}">
-                  {invoice.status}
-                </span>
+                <div class="flex flex-col">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {getStatusClasses(invoice.status)}">
+                    {invoice.status}
+                  </span>
+                  
+                  {#if invoice.status.toLowerCase() === 'sent'}
+                    {@const daysUntilDue = getDaysUntilDue(invoice.due_date)}
+                    {#if daysUntilDue <= 30 && daysUntilDue >= 0}
+                      <span class="mt-1 px-2 py-0.5 text-xs rounded-full inline-flex items-center justify-center
+                        {daysUntilDue <= 7 ? 'bg-red-100 text-red-800' : 
+                        daysUntilDue <= 14 ? 'bg-orange-100 text-orange-800' : 
+                        'bg-yellow-100 text-yellow-800'}">
+                        Due in {daysUntilDue} day{daysUntilDue !== 1 ? 's' : ''}
+                      </span>
+                    {/if}
+                  {/if}
+                </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                 {new Date(invoice.due_date).toLocaleDateString()}
