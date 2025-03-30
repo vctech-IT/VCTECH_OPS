@@ -21,7 +21,7 @@ import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
 import { Interface } from 'readline';
 import CustomLoader from '$lib/components/CustomLoader.svelte';
-
+import { writable } from 'svelte/store';
 
 
 
@@ -87,6 +87,14 @@ function toggleAllTooltips() {
   showAllTooltips = !showAllTooltips;
   saveState();
 }
+
+// Cache store
+const dashboardCache = writable({
+  data: null,
+  timestamp: 0,
+  filters: null
+});
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 $: filteredAndSortedOrders = modalContent.orderDetails
   ? modalContent.orderDetails
@@ -266,6 +274,7 @@ function loadState() {
 
 function handleInvoiceStatusChange() {
   saveState();
+  dashboardCache.update(c => ({ ...c, filters: null }));
   fetchDashboardData();
 }
 
@@ -314,13 +323,58 @@ function showSONumbers(item: string, type: 'client' | 'category') {
 
 
 async function fetchDashboardData() {
+  // Check cache
+  let cache;
+  dashboardCache.subscribe(c => cache = c)();
+  
+  const currentFilters = JSON.stringify({ 
+    dateRange, orderStatus, selectedPM, invoiceStatus 
+  });
+  
+  // Use cache if valid
+  const now = Date.now();
+  if (cache.data && 
+      cache.timestamp + CACHE_DURATION > now && 
+      currentFilters === cache.filters) {
+    console.log('Using cached dashboard data');
+    
+    totalOrders = cache.data.totalOrders;
+    totalRevenue = cache.data.totalRevenue;
+    activeInstallations = cache.data.activeInstallations;
+    activeServices = cache.data.activeServices;
+    installationDetails = cache.data.installationDetails;
+    serviceDetails = cache.data.serviceDetails;
+    orderCategories = cache.data.orderCategories;
+    ordersByStage = cache.data.ordersByStage;
+    recentOrders = cache.data.recentOrders;
+    topCustomers = cache.data.topCustomers;
+    ordersByMonth = cache.data.ordersByMonth;
+    averageOrderValue = cache.data.averageOrderValue;
+    conversionRate = cache.data.conversionRate;
+    agingData = cache.data.agingData;
+    pmNames = cache.data.pmNames;
+    invoiceStatuses = cache.data.invoiceStatuses || [];
+    
+    updateChart();
+    return;
+  }
+  
+  // Fetch new data
   const response = await fetch('/api/dashboard-data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatusFilter: invoiceStatus  })
+    body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatusFilter: invoiceStatus })
   });
+  
   const data = await response.json();
- 
+  
+  // Update cache
+  dashboardCache.set({
+    data,
+    timestamp: now,
+    filters: currentFilters
+  });
+  
   totalOrders = data.totalOrders;
   totalRevenue = data.totalRevenue;
   activeInstallations = data.activeInstallations;
@@ -337,6 +391,7 @@ async function fetchDashboardData() {
   agingData = data.agingData;
   pmNames = data.pmNames;
   invoiceStatuses = data.invoiceStatuses || [];
+  
   updateChart();
 }
 
@@ -347,6 +402,8 @@ function getAgingColor(isOverdue: boolean): string {
 function handleOrderStatusChange(event) {
   orderStatus = (event.target as HTMLSelectElement).value;
   saveState();
+  // Force cache refresh by setting filters to null
+  dashboardCache.update(c => ({ ...c, filters: null }));
   fetchDashboardData();
 }
 
@@ -655,6 +712,7 @@ function formatDate(date: string): string {
 
 function handlePMFilterChange() {
   saveState();
+  dashboardCache.update(c => ({ ...c, filters: null }));
   fetchDashboardData();
 }
 
