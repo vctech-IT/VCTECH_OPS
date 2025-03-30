@@ -21,7 +21,7 @@ import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
 import { Interface } from 'readline';
 import CustomLoader from '$lib/components/CustomLoader.svelte';
-import { writable } from 'svelte/store';
+
 
 
 
@@ -40,6 +40,26 @@ interface DashboardState {
   invoiceStatus: string;
   dateRange: { start: string | null; end: string | null };
   showAllTooltips: boolean;
+  //new fields
+  lastFetchTime: number;
+  dashboardData: {
+    totalOrders: number;
+    totalRevenue: number;
+    activeInstallations: number;
+    activeServices: number;
+    installationDetails: any;
+    serviceDetails: any;
+    orderCategories: {category: string, count: number, revenue: number}[];
+    ordersByStage: {stage: number, count: number}[];
+    recentOrders: any[];
+    topCustomers: {name: string, totalOrders: number, totalRevenue: number}[];
+    ordersByMonth: {month: number, year: number, count: number, revenue: number}[];
+    averageOrderValue: number;
+    conversionRate: number;
+    agingData: any;
+    pmNames: string[];
+    invoiceStatuses: string[];
+  };
 }
 
 let totalOrders = 0;
@@ -88,13 +108,32 @@ function toggleAllTooltips() {
   saveState();
 }
 
-// Cache store
-const dashboardCache = writable({
-  data: null,
-  timestamp: 0,
-  filters: null
-});
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+// Add this function after all your imports
+function shouldRefreshData(state: DashboardState): boolean {
+  // No cache data available
+  if (!state.lastFetchTime || !state.dashboardData) {
+    return true;
+  }
+  
+  // Cache older than 5 minutes (adjust as needed)
+  const cacheMaxAge = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const dataAge = Date.now() - state.lastFetchTime;
+  if (dataAge > cacheMaxAge) {
+    return true;
+  }
+  
+  // Filter conditions changed
+  if (
+    state.orderStatus !== orderStatus ||
+    state.selectedPM !== selectedPM ||
+    state.invoiceStatus !== invoiceStatus ||
+    JSON.stringify(state.dateRange) !== JSON.stringify(dateRange)
+  ) {
+    return true;
+  }
+  
+  return false;
+}
 
 $: filteredAndSortedOrders = modalContent.orderDetails
   ? modalContent.orderDetails
@@ -167,22 +206,40 @@ afterNavigate(() => {
   loadState();
 });
 
+
 function handleVisibilityChange() {
   if (document.visibilityState === 'visible') {
-    loadState();
+    // When the tab becomes visible again, check if we need fresh data
+    try {
+      const savedState = localStorage.getItem('dashboardState');
+      if (savedState) {
+        const state: DashboardState = JSON.parse(savedState);
+        if (shouldRefreshData(state)) {
+          fetchDashboardData();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking cache on visibility change:', error);
+      fetchDashboardData();
+    }
   } else {
+    // When the tab becomes hidden, save the current state
     saveState();
   }
 }
 
 onMount(() => {
+  // Initialize from cache first
   loadState();
+  
   if (browser) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
   }
-  if (!modalContent.orderDetails.length) {
-    fetchDashboardData();
-  }
+  
+  // No need for this check anymore since loadState handles it
+  // if (!modalContent.orderDetails.length) {
+  //   fetchDashboardData();
+  // }
 });
 
 interface ModalContent {
@@ -230,7 +287,7 @@ function loadState() {
     if (savedState) {
       const state: DashboardState = JSON.parse(savedState);
       
-      // Restore all state values
+      // Restore all UI state values
       activeTab = state.activeTab;
       orderStatus = state.orderStatus;
       selectedPM = state.selectedPM;
@@ -242,9 +299,9 @@ function loadState() {
       sortColumn = state.sortColumn;
       sortDirection = state.sortDirection;
       filterCategory = state.filterCategory;
-      showAllTooltips = state.showAllTooltips !== undefined ? state.showAllTooltips : false; // Add this line
+      showAllTooltips = state.showAllTooltips !== undefined ? state.showAllTooltips : false;
 
-      // Ensure modalContent is properly restored with all required properties
+      // Restore modalContent
       if (state.modalContent) {
         modalContent = {
           title: state.modalContent.title || 'Modal Title',
@@ -257,27 +314,61 @@ function loadState() {
         };
       }
       
-      // Restore dateRange if it exists
+      // Restore dateRange
       if (state.dateRange) {
         dateRange = state.dateRange;
       }
       
-      // Immediately fetch dashboard data with restored filters
+      // Restore dashboard data from cache if available
+      if (state.dashboardData) {
+        // Use cached data for immediate display
+        totalOrders = state.dashboardData.totalOrders;
+        totalRevenue = state.dashboardData.totalRevenue;
+        activeInstallations = state.dashboardData.activeInstallations;
+        activeServices = state.dashboardData.activeServices;
+        installationDetails = state.dashboardData.installationDetails;
+        serviceDetails = state.dashboardData.serviceDetails;
+        orderCategories = state.dashboardData.orderCategories;
+        ordersByStage = state.dashboardData.ordersByStage;
+        recentOrders = state.dashboardData.recentOrders;
+        topCustomers = state.dashboardData.topCustomers;
+        ordersByMonth = state.dashboardData.ordersByMonth;
+        averageOrderValue = state.dashboardData.averageOrderValue;
+        conversionRate = state.dashboardData.conversionRate;
+        agingData = state.dashboardData.agingData;
+        pmNames = state.dashboardData.pmNames;
+        invoiceStatuses = state.dashboardData.invoiceStatuses || [];
+        
+        // Update the chart with cached data
+        if (orderCategories.length > 0) {
+          setTimeout(updateChart, 0);
+        }
+      }
+      
+      // Check if we need to refresh data
+      const needsRefresh = shouldRefreshData(state);
+      
+      if (needsRefresh) {
+        fetchDashboardData();
+      }
+    } else {
+      // No saved state, must fetch data
       fetchDashboardData();
     }
   } catch (error) {
     console.error('Error loading dashboard state:', error);
-    // If there's an error, clear the corrupted state
+    // If there's an error, clear the corrupted state and fetch new data
     localStorage.removeItem('dashboardState');
+    fetchDashboardData();
   }
 }
 
 function handleInvoiceStatusChange() {
   saveState();
-  dashboardCache.update(c => ({ ...c, filters: null }));
   fetchDashboardData();
 }
 
+// Replace your existing saveState function (around line 284)
 function saveState() {
   if (!browser) return;
   
@@ -296,7 +387,27 @@ function saveState() {
       modalContent,
       invoiceStatus,
       dateRange,
-      showAllTooltips
+      showAllTooltips,
+      // new the timestamp and data cache
+      lastFetchTime: Date.now(),
+      dashboardData: {
+        totalOrders,
+        totalRevenue,
+        activeInstallations,
+        activeServices,
+        installationDetails,
+        serviceDetails,
+        orderCategories,
+        ordersByStage,
+        recentOrders,
+        topCustomers,
+        ordersByMonth,
+        averageOrderValue,
+        conversionRate,
+        agingData,
+        pmNames,
+        invoiceStatuses
+      }
     };
     
     localStorage.setItem('dashboardState', JSON.stringify(state));
@@ -323,76 +434,51 @@ function showSONumbers(item: string, type: 'client' | 'category') {
 
 
 async function fetchDashboardData() {
-  // Check cache
-  let cache;
-  dashboardCache.subscribe(c => cache = c)();
+  // Add loading indicator
+  isLoadingKPIData = true;
   
-  const currentFilters = JSON.stringify({ 
-    dateRange, orderStatus, selectedPM, invoiceStatus 
-  });
-  
-  // Use cache if valid
-  const now = Date.now();
-  if (cache.data && 
-      cache.timestamp + CACHE_DURATION > now && 
-      currentFilters === cache.filters) {
-    console.log('Using cached dashboard data');
+  try {
+    const response = await fetch('/api/dashboard-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatusFilter: invoiceStatus })
+    });
     
-    totalOrders = cache.data.totalOrders;
-    totalRevenue = cache.data.totalRevenue;
-    activeInstallations = cache.data.activeInstallations;
-    activeServices = cache.data.activeServices;
-    installationDetails = cache.data.installationDetails;
-    serviceDetails = cache.data.serviceDetails;
-    orderCategories = cache.data.orderCategories;
-    ordersByStage = cache.data.ordersByStage;
-    recentOrders = cache.data.recentOrders;
-    topCustomers = cache.data.topCustomers;
-    ordersByMonth = cache.data.ordersByMonth;
-    averageOrderValue = cache.data.averageOrderValue;
-    conversionRate = cache.data.conversionRate;
-    agingData = cache.data.agingData;
-    pmNames = cache.data.pmNames;
-    invoiceStatuses = cache.data.invoiceStatuses || [];
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
     
+    const data = await response.json();
+    
+    // Update all dashboard data
+    totalOrders = data.totalOrders;
+    totalRevenue = data.totalRevenue;
+    activeInstallations = data.activeInstallations;
+    activeServices = data.activeServices;
+    installationDetails = data.installationDetails;
+    serviceDetails = data.serviceDetails;
+    orderCategories = data.orderCategories;
+    ordersByStage = data.ordersByStage;
+    recentOrders = data.recentOrders;
+    topCustomers = data.topCustomers;
+    ordersByMonth = data.ordersByMonth;
+    averageOrderValue = data.averageOrderValue;
+    conversionRate = data.conversionRate;
+    agingData = data.agingData;
+    pmNames = data.pmNames;
+    invoiceStatuses = data.invoiceStatuses || [];
+    
+    // Update the chart
     updateChart();
-    return;
+    
+    // Save the updated state to cache
+    saveState();
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    // Optional: Display an error message to the user
+  } finally {
+    isLoadingKPIData = false;
   }
-  
-  // Fetch new data
-  const response = await fetch('/api/dashboard-data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatusFilter: invoiceStatus })
-  });
-  
-  const data = await response.json();
-  
-  // Update cache
-  dashboardCache.set({
-    data,
-    timestamp: now,
-    filters: currentFilters
-  });
-  
-  totalOrders = data.totalOrders;
-  totalRevenue = data.totalRevenue;
-  activeInstallations = data.activeInstallations;
-  activeServices = data.activeServices;
-  installationDetails = data.installationDetails;
-  serviceDetails = data.serviceDetails;
-  orderCategories = data.orderCategories;
-  ordersByStage = data.ordersByStage;
-  recentOrders = data.recentOrders;
-  topCustomers = data.topCustomers;
-  ordersByMonth = data.ordersByMonth;
-  averageOrderValue = data.averageOrderValue;
-  conversionRate = data.conversionRate;
-  agingData = data.agingData;
-  pmNames = data.pmNames;
-  invoiceStatuses = data.invoiceStatuses || [];
-  
-  updateChart();
 }
 
 function getAgingColor(isOverdue: boolean): string {
@@ -402,8 +488,6 @@ function getAgingColor(isOverdue: boolean): string {
 function handleOrderStatusChange(event) {
   orderStatus = (event.target as HTMLSelectElement).value;
   saveState();
-  // Force cache refresh by setting filters to null
-  dashboardCache.update(c => ({ ...c, filters: null }));
   fetchDashboardData();
 }
 
@@ -712,7 +796,6 @@ function formatDate(date: string): string {
 
 function handlePMFilterChange() {
   saveState();
-  dashboardCache.update(c => ({ ...c, filters: null }));
   fetchDashboardData();
 }
 
@@ -733,6 +816,16 @@ onDestroy(() => {
     <header class="mb-8 flex justify-between items-center">
       <h1 class="text-3xl font-bold text-slate-800">Dashboard</h1>
       <div class="flex items-center space-x-4 mb-4">
+
+      <button 
+      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center"
+      on:click={() => fetchDashboardData()}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Refresh
+    </button>
         <!-- Order Status Filter -->
         <div class="relative">
           <select
