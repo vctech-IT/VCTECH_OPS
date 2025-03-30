@@ -222,7 +222,6 @@ function getPaginationRange() {
   $: hasDateFilters = startDate || endDate;
   $: hasTotalFilters = minTotal || maxTotal;
   $: hasAnyFilters = hasStatusFilters || hasBranchFilters || hasDateFilters || hasTotalFilters;
-  $: isLoading = $navigating !== null;
 </script>
 
 <div class="container mx-auto px-4 py-8 max-w-7xl">
