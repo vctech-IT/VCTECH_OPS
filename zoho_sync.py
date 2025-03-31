@@ -176,7 +176,7 @@ def map_sales_order_fields(sales_order):
     mapped_data = {
         '_id': so_number,
         'SOId': sales_order.get('salesorder_id', ''),
-        'date': sales_order.get('date', ''),
+        'date': datetime.fromisoformat(sales_order.get('date', datetime.now().isoformat())),
         'clientName': sales_order.get('customer_name', ''),
         'SubTotal': float(sales_order.get('sub_total', 0.0)),
         'Total': float(sales_order.get('total', 0.0)),
