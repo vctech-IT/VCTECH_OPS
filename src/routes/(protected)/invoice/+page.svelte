@@ -437,20 +437,21 @@ function getPaginationRange() {
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex flex-col">
-                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {getStatusClasses(invoice.status)}">
-                    {invoice.status}
-                  </span>
-                  
                   {#if invoice.status.toLowerCase() === 'sent'}
                     {@const daysUntilDue = getDaysUntilDue(invoice.due_date)}
                     {#if daysUntilDue <= 30 && daysUntilDue >= 0}
-                      <span class="mt-1 px-2 py-0.5 text-xs rounded-full inline-flex items-center justify-center
-                        {daysUntilDue <= 7 ? 'bg-red-100 text-red-800' : 
-                        daysUntilDue <= 14 ? 'bg-orange-100 text-orange-800' : 
-                        'bg-yellow-100 text-yellow-800'}">
+                      <span class="mt-1 text-xs
+                        {daysUntilDue <= 2 ? 'text-red-600' : 
+                        daysUntilDue <= 7 ? 'text-red-500' : 
+                        daysUntilDue <= 14 ? 'text-orange-500' : 
+                        'text-yellow-600'}">
                         Due in {daysUntilDue} day{daysUntilDue !== 1 ? 's' : ''}
                       </span>
                     {/if}
+                    {:else}
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {getStatusClasses(invoice.status)}">
+                    {invoice.status}
+                  </span>
                   {/if}
                 </div>
               </td>
