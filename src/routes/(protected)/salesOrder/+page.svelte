@@ -202,8 +202,8 @@
   }
 
   // Navigate to Sales Order Details
-  function navigateToSalesOrderDetails(soNumber: string) {
-    goto(`/salesOrder/${soNumber}`);
+  function navigateToSalesOrderDetails(soID: string) {
+    goto(`/salesOrder/${soID}`);
   }
 
   // Pagination Functions
@@ -506,7 +506,7 @@
           {#each salesOrders as order (order.SONumber)}
             <tr 
               class="hover:bg-blue-50 cursor-pointer transition-colors duration-200"
-              on:click={() => navigateToSalesOrderDetails(order.SONumber)}
+              on:click={() => navigateToSalesOrderDetails(order.SOId)}
               transition:fade
             >
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
