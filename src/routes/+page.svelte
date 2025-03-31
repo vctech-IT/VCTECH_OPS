@@ -13,15 +13,14 @@ import Tabs from '$lib/components/Tabs.svelte';
 import LineChart from '$lib/components/LineChart.svelte';
 import { faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
-import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
+import { goto } from '$app/navigation';
 import { fade, fly } from 'svelte/transition';
 import { quintOut } from 'svelte/easing';
-import {  Eye, EyeOff, Filter, LayoutGrid, List } from 'lucide-svelte';
+import {  Filter } from 'lucide-svelte';
 import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
 import { Interface } from 'readline';
 import CustomLoader from '$lib/components/CustomLoader.svelte';
-
 
 
 
@@ -39,27 +38,6 @@ interface DashboardState {
   modalContent: ModalContent;
   invoiceStatus: string;
   dateRange: { start: string | null; end: string | null };
-  showAllTooltips: boolean;
-  //new fields
-  lastFetchTime: number;
-  dashboardData: {
-    totalOrders: number;
-    totalRevenue: number;
-    activeInstallations: number;
-    activeServices: number;
-    installationDetails: any;
-    serviceDetails: any;
-    orderCategories: {category: string, count: number, revenue: number}[];
-    ordersByStage: {stage: number, count: number}[];
-    recentOrders: any[];
-    topCustomers: {name: string, totalOrders: number, totalRevenue: number}[];
-    ordersByMonth: {month: number, year: number, count: number, revenue: number}[];
-    averageOrderValue: number;
-    conversionRate: number;
-    agingData: any;
-    pmNames: string[];
-    invoiceStatuses: string[];
-  };
 }
 
 let totalOrders = 0;
@@ -85,7 +63,7 @@ let selectedCategory: string | null = null;
 let pmNames: string[] = [];
 let selectedPM: string = 'all';
 let isLoadingKPIData = false;
-let invoiceStatus = 'not_invoiced';
+let invoiceStatus = 'all';
 let invoiceStatuses: string[] = [];
 
 interface OrderDetail {
@@ -101,39 +79,6 @@ let searchTerm = '';
 let sortColumn = 'SONumber';
 let sortDirection: 'asc' | 'desc' = 'asc';
 let filterCategory = 'All';
-let showAllTooltips = false;
-
-function toggleAllTooltips() {
-  showAllTooltips = !showAllTooltips;
-  saveState();
-}
-
-// Add this function after all your imports
-function shouldRefreshData(state: DashboardState): boolean {
-  // No cache data available
-  if (!state.lastFetchTime || !state.dashboardData) {
-    return true;
-  }
-  
-  // Cache older than 5 minutes (adjust as needed)
-  const cacheMaxAge = 5 * 60 * 1000; // 5 minutes in milliseconds
-  const dataAge = Date.now() - state.lastFetchTime;
-  if (dataAge > cacheMaxAge) {
-    return true;
-  }
-  
-  // Filter conditions changed
-  if (
-    state.orderStatus !== orderStatus ||
-    state.selectedPM !== selectedPM ||
-    state.invoiceStatus !== invoiceStatus ||
-    JSON.stringify(state.dateRange) !== JSON.stringify(dateRange)
-  ) {
-    return true;
-  }
-  
-  return false;
-}
 
 $: filteredAndSortedOrders = modalContent.orderDetails
   ? modalContent.orderDetails
@@ -198,50 +143,6 @@ onDestroy(() => {
   saveState();
 });
 
-beforeNavigate(() => {
-  saveState();
-});
-
-afterNavigate(() => {
-  loadState();
-});
-
-
-function handleVisibilityChange() {
-  if (document.visibilityState === 'visible') {
-    // When the tab becomes visible again, check if we need fresh data
-    try {
-      const savedState = localStorage.getItem('dashboardState');
-      if (savedState) {
-        const state: DashboardState = JSON.parse(savedState);
-        if (shouldRefreshData(state)) {
-          fetchDashboardData();
-        }
-      }
-    } catch (error) {
-      console.error('Error checking cache on visibility change:', error);
-      fetchDashboardData();
-    }
-  } else {
-    // When the tab becomes hidden, save the current state
-    saveState();
-  }
-}
-
-onMount(() => {
-  // Initialize from cache first
-  loadState();
-  
-  if (browser) {
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-  }
-  
-  // No need for this check anymore since loadState handles it
-  // if (!modalContent.orderDetails.length) {
-  //   fetchDashboardData();
-  // }
-});
-
 interface ModalContent {
   title: string;
   totalOrders: number;
@@ -287,7 +188,7 @@ function loadState() {
     if (savedState) {
       const state: DashboardState = JSON.parse(savedState);
       
-      // Restore all UI state values
+      // Restore all state values
       activeTab = state.activeTab;
       orderStatus = state.orderStatus;
       selectedPM = state.selectedPM;
@@ -299,67 +200,20 @@ function loadState() {
       sortColumn = state.sortColumn;
       sortDirection = state.sortDirection;
       filterCategory = state.filterCategory;
-      showAllTooltips = state.showAllTooltips !== undefined ? state.showAllTooltips : false;
-
-      // Restore modalContent
-      if (state.modalContent) {
-        modalContent = {
-          title: state.modalContent.title || 'Modal Title',
-          totalOrders: state.modalContent.totalOrders || 0,
-          totalSum: state.modalContent.totalSum || 0,
-          categorizedData: state.modalContent.categorizedData || { byClient: {}, byCategory: {} },
-          soNumbers: state.modalContent.soNumbers || [],
-          agingData: state.modalContent.agingData || {},
-          orderDetails: state.modalContent.orderDetails || [],
-        };
-      }
+      modalContent = state.modalContent;
       
-      // Restore dateRange
+      // Restore dateRange if it exists
       if (state.dateRange) {
         dateRange = state.dateRange;
       }
       
-      // Restore dashboard data from cache if available
-      if (state.dashboardData) {
-        // Use cached data for immediate display
-        totalOrders = state.dashboardData.totalOrders;
-        totalRevenue = state.dashboardData.totalRevenue;
-        activeInstallations = state.dashboardData.activeInstallations;
-        activeServices = state.dashboardData.activeServices;
-        installationDetails = state.dashboardData.installationDetails;
-        serviceDetails = state.dashboardData.serviceDetails;
-        orderCategories = state.dashboardData.orderCategories;
-        ordersByStage = state.dashboardData.ordersByStage;
-        recentOrders = state.dashboardData.recentOrders;
-        topCustomers = state.dashboardData.topCustomers;
-        ordersByMonth = state.dashboardData.ordersByMonth;
-        averageOrderValue = state.dashboardData.averageOrderValue;
-        conversionRate = state.dashboardData.conversionRate;
-        agingData = state.dashboardData.agingData;
-        pmNames = state.dashboardData.pmNames;
-        invoiceStatuses = state.dashboardData.invoiceStatuses || [];
-        
-        // Update the chart with cached data
-        if (orderCategories.length > 0) {
-          setTimeout(updateChart, 0);
-        }
-      }
-      
-      // Check if we need to refresh data
-      const needsRefresh = shouldRefreshData(state);
-      
-      if (needsRefresh) {
-        fetchDashboardData();
-      }
-    } else {
-      // No saved state, must fetch data
+      // Immediately fetch dashboard data with restored filters
       fetchDashboardData();
     }
   } catch (error) {
     console.error('Error loading dashboard state:', error);
-    // If there's an error, clear the corrupted state and fetch new data
+    // If there's an error, clear the corrupted state
     localStorage.removeItem('dashboardState');
-    fetchDashboardData();
   }
 }
 
@@ -368,7 +222,6 @@ function handleInvoiceStatusChange() {
   fetchDashboardData();
 }
 
-// Replace your existing saveState function (around line 284)
 function saveState() {
   if (!browser) return;
   
@@ -386,28 +239,7 @@ function saveState() {
       filterCategory,
       modalContent,
       invoiceStatus,
-      dateRange,
-      showAllTooltips,
-      // new the timestamp and data cache
-      lastFetchTime: Date.now(),
-      dashboardData: {
-        totalOrders,
-        totalRevenue,
-        activeInstallations,
-        activeServices,
-        installationDetails,
-        serviceDetails,
-        orderCategories,
-        ordersByStage,
-        recentOrders,
-        topCustomers,
-        ordersByMonth,
-        averageOrderValue,
-        conversionRate,
-        agingData,
-        pmNames,
-        invoiceStatuses
-      }
+      dateRange
     };
     
     localStorage.setItem('dashboardState', JSON.stringify(state));
@@ -434,51 +266,30 @@ function showSONumbers(item: string, type: 'client' | 'category') {
 
 
 async function fetchDashboardData() {
-  // Add loading indicator
-  isLoadingKPIData = true;
-  
-  try {
-    const response = await fetch('/api/dashboard-data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatusFilter: invoiceStatus })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // Update all dashboard data
-    totalOrders = data.totalOrders;
-    totalRevenue = data.totalRevenue;
-    activeInstallations = data.activeInstallations;
-    activeServices = data.activeServices;
-    installationDetails = data.installationDetails;
-    serviceDetails = data.serviceDetails;
-    orderCategories = data.orderCategories;
-    ordersByStage = data.ordersByStage;
-    recentOrders = data.recentOrders;
-    topCustomers = data.topCustomers;
-    ordersByMonth = data.ordersByMonth;
-    averageOrderValue = data.averageOrderValue;
-    conversionRate = data.conversionRate;
-    agingData = data.agingData;
-    pmNames = data.pmNames;
-    invoiceStatuses = data.invoiceStatuses || [];
-    
-    // Update the chart
-    updateChart();
-    
-    // Save the updated state to cache
-    saveState();
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    // Optional: Display an error message to the user
-  } finally {
-    isLoadingKPIData = false;
-  }
+  const response = await fetch('/api/dashboard-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...dateRange, orderStatus, pmNameFilter: selectedPM, invoiceStatusFilter: invoiceStatus  })
+  });
+  const data = await response.json();
+ 
+  totalOrders = data.totalOrders;
+  totalRevenue = data.totalRevenue;
+  activeInstallations = data.activeInstallations;
+  activeServices = data.activeServices;
+  installationDetails = data.installationDetails;
+  serviceDetails = data.serviceDetails;
+  orderCategories = data.orderCategories;
+  ordersByStage = data.ordersByStage;
+  recentOrders = data.recentOrders;
+  topCustomers = data.topCustomers;
+  ordersByMonth = data.ordersByMonth;
+  averageOrderValue = data.averageOrderValue;
+  conversionRate = data.conversionRate;
+  agingData = data.agingData;
+  pmNames = data.pmNames;
+  invoiceStatuses = data.invoiceStatuses || [];
+  updateChart();
 }
 
 function getAgingColor(isOverdue: boolean): string {
@@ -696,58 +507,6 @@ function processModalData(orders: any[], title: string, totalOrders: number): Mo
   };
 }
 
-function handleTooltipPosition(event) {
-  const container = event.currentTarget;
-  const tooltip = container.querySelector('.tooltip-content');
-  if (!tooltip) return;
-  
-  // Get container position and viewport dimensions
-  const containerRect = container.getBoundingClientRect();
-  const viewportWidth = window.innerWidth;
-  
-  // First reset tooltip to default position
-  tooltip.style.left = '50%';
-  tooltip.style.transform = 'translateX(-50%)';
-  tooltip.style.visibility = 'visible';
-  tooltip.style.opacity = '0';
-  
-  // Force layout calculation
-  const tooltipRect = tooltip.getBoundingClientRect();
-  
-  // Check left edge
-  if (tooltipRect.left < 10) {
-    tooltip.style.left = '0';
-    tooltip.style.right = 'auto';
-    tooltip.style.transform = 'translateX(0)';
-    
-    // Adjust arrow
-    const arrow = tooltip.querySelector('.tooltip-arrow');
-    if (arrow) {
-      const arrowLeftPos = containerRect.width / 2;
-      arrow.style.left = `${arrowLeftPos}px`;
-      arrow.style.right = 'auto';
-    }
-  }
-  // Check right edge
-  else if (tooltipRect.right > viewportWidth - 10) {
-    tooltip.style.left = 'auto';
-    tooltip.style.right = '0';
-    tooltip.style.transform = 'translateX(0)';
-    
-    // Adjust arrow
-    const arrow = tooltip.querySelector('.tooltip-arrow');
-    if (arrow) {
-      const arrowRightPos = containerRect.width / 2;
-      arrow.style.left = 'auto';
-      arrow.style.right = `${arrowRightPos}px`;
-    }
-  }
-  
-  // Reset visibility
-  tooltip.style.visibility = '';
-  tooltip.style.opacity = '';
-}
-
 
 function getStageTitle(stage: number): string {
   switch (stage) {
@@ -816,16 +575,6 @@ onDestroy(() => {
     <header class="mb-8 flex justify-between items-center">
       <h1 class="text-3xl font-bold text-slate-800">Dashboard</h1>
       <div class="flex items-center space-x-4 mb-4">
-
-      <button 
-      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center"
-      on:click={() => fetchDashboardData()}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
-      Refresh
-    </button>
         <!-- Order Status Filter -->
         <div class="relative">
           <select
@@ -1015,25 +764,7 @@ onDestroy(() => {
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full align-middle">
           {#if activeTab === 0}
-        <!-- Tab header with options -->
-        <div class="flex justify-between items-center mb-4 px-2">
-          <h3 class="text-sm font-medium text-gray-700">Client Summary</h3>
-          <button 
-            on:click={toggleAllTooltips} 
-            class="flex items-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md text-xs transition-colors duration-150 shadow-sm"
-            title={showAllTooltips ? "Hide details" : "Show all details"}
-          >
-            {#if showAllTooltips}
-              <LayoutGrid size={14} class="mr-1" />
-              <span>Compact View</span>
-            {:else}
-              <List size={14} class="mr-1" />
-              <span>Detailed View</span>
-            {/if}
-          </button>
-        </div>
-        
-        <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
+            <div class="overflow-hidden border-b border-gray-200 shadow sm:rounded-lg">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -1055,57 +786,39 @@ onDestroy(() => {
           <tr>
             <td colspan="3" class="px-6 py-4">
               <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-{#each data.soNumbers as soNumber}
-  {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
-  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
-  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
-  {#if soData}
-    <div 
-      class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 {showAllTooltips ? 'bg-white border border-blue-400 text-slate-800' : 'bg-blue-400 text-white'} relative"
-      on:click={() => handleSOClick(soData.SOId)}
-    >
-      <!-- SO number container -->
-    <div 
-      class="tooltip-container"
-      on:mouseenter={handleTooltipPosition}
-    >
-        <span>{soNumber}</span>
-        {#if agingInfo}
-          <span class="block mt-1">
-            Age: {agingInfo.ageInHours}h
-          </span>
-        {/if}
-        
-        {#if showAllTooltips}
-          <!-- Expanded view when show all is active -->
-          <div class="mt-2 text-xs border-t border-gray-200 pt-2">
-            <p class="flex justify-between mb-1">
-              <span class="font-medium text-gray-500">Reference:</span>
-              <span>{orderDetail?.referenceNumber || 'N/A'}</span>
-            </p>
-            <p class="flex justify-between mb-1">
-              <span class="font-medium text-gray-500">Amount:</span>
-              <span>₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</span>
-            </p>
-          </div>
-        {:else}
-
-          <!-- Regular tooltip -->
-          <div class="tooltip-content">
-            <div class="tooltip-arrow"></div>
-            <div class="tooltip-inner">
-              <p class="tooltip-title">{soNumber}</p>
-              <div class="tooltip-details">
-                <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
-                <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-        {/if}
-      </div>
-    </div>
-  {/if}
-{/each}
+                {#each data.soNumbers as soNumber}
+                  {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
+                  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
+                  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
+                  {#if soData}
+                    <div 
+                      class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white relative"
+                      on:click={() => handleSOClick(soData.SOId)}
+                    >
+                      <!-- SO number container -->
+                      <div class="tooltip-container">
+                        <span>{soNumber}</span>
+                        {#if agingInfo}
+                          <span class="block mt-1">
+                            Age: {agingInfo.ageInHours}h
+                          </span>
+                        {/if}
+                        
+                        <!-- Improved tooltip -->
+                        <div class="tooltip-content">
+                          <div class="tooltip-arrow"></div>
+                          <div class="tooltip-inner">
+                            <p class="tooltip-title">{soNumber}</p>
+                            <div class="tooltip-details">
+                              <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
+                              <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                {/each}
                           </div>
                         </td>
                       </tr>
@@ -1137,43 +850,23 @@ onDestroy(() => {
                       <tr>
                         <td colspan="3" class="px-6 py-4">
                           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-{#each data.soNumbers as soNumber}
-  {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
-  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
-  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === soNumber)}
-  {#if soData}
-    <div 
-      class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white relative"
-      on:click={() => handleSOClick(soData.SOId)}
-    >
-      <!-- SO number container -->
-<div 
-  class="tooltip-container"
-  on:mouseenter={handleTooltipPosition}
->
-        <span>{soNumber}</span>
-        {#if agingInfo}
-          <span class="block mt-1">
-            Age: {agingInfo.ageInHours}h
-          </span>
-        {/if}
-        
-        <!-- Tooltip -->
-        <div class="tooltip-content">
-          <div class="tooltip-arrow"></div>
-          <div class="tooltip-inner">
-            <p class="tooltip-title">{soNumber}</p>
-            <div class="tooltip-details">
-	      <p><span>Client:</span> {orderDetail?.clientName || 'N/A'}</p>
-              <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
-              <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
-{/each}
+                            {#each data.soNumbers as soNumber}
+                              {@const soData = modalContent.soNumbers.find(so => so.SONumber === soNumber)}
+                              {@const agingInfo = modalContent.agingData.find(item => item.SONumber === soNumber)}
+                              {#if soData}
+                                <div 
+                                  class="p-2 rounded text-xs font-medium cursor-pointer transition-colors duration-150 bg-blue-400 text-white"
+                                  on:click={() => handleSOClick(soData.SOId)}
+                                >
+                                  {soNumber}
+                                  {#if agingInfo}
+                                    <span class="block mt-1">
+                                      Age: {agingInfo.ageInHours}h
+                                    </span>
+                                  {/if}
+                                </div>
+                              {/if}
+                            {/each}
                           </div>
                         </td>
                       </tr>
@@ -1186,40 +879,20 @@ onDestroy(() => {
               <div class="bg-white rounded-lg shadow-sm p-4">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">SO Numbers</h3>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-{#each modalContent.soNumbers as { SONumber, SOId }}
-  {@const agingInfo = modalContent.agingData.find(item => item.SONumber === SONumber)}
-  {@const orderDetail = modalContent.orderDetails.find(order => order.SONumber === SONumber)}
-  <div 
-    class="rounded-lg p-3 text-sm font-medium cursor-pointer transition-colors duration-150 relative {getAgingColor(agingInfo?.isOverdue)}"
-    on:click={() => handleSOClick(SOId)}
-  >
-<div 
-  class="tooltip-container"
-  on:mouseenter={handleTooltipPosition}
->
-      <span>{SONumber}</span>
-      {#if agingInfo}
-        <span class="block text-xs mt-1">
-          {agingInfo.isOverdue ? 'Overdue' : 'On Time'} ({agingInfo.ageInHours}h)
-        </span>
-      {/if}
-      
-      <!-- Tooltip -->
-      <div class="tooltip-content">
-        <div class="tooltip-arrow"></div>
-        <div class="tooltip-inner">
-          <p class="tooltip-title">{SONumber}</p>
-          <div class="tooltip-details">
-            <p><span>Reference:</span> {orderDetail?.referenceNumber || 'N/A'}</p>
-            <p><span>Amount:</span> ₹{orderDetail?.SOAmount?.toLocaleString() || 'N/A'}</p>
-            <p><span>Client:</span> {orderDetail?.clientName || 'N/A'}</p>
-            <p><span>Category:</span> {orderDetail?.SOCategory || 'N/A'}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-{/each}
+                  {#each modalContent.soNumbers as { SONumber, SOId }}
+                    {@const agingInfo = modalContent.agingData.find(item => item.SONumber === SONumber)}
+                    <div 
+                      class="rounded-lg p-3 text-sm font-medium cursor-pointer transition-colors duration-150 {getAgingColor(agingInfo?.isOverdue)}"
+                      on:click={() => handleSOClick(SOId)}
+                    >
+                      {SONumber}
+                      {#if agingInfo}
+                        <span class="block text-xs mt-1">
+                          {agingInfo.isOverdue ? 'Overdue' : 'On Time'} ({agingInfo.ageInHours}h)
+                        </span>
+                      {/if}
+                    </div>
+                  {/each}
                 </div>
               </div>
           {:else if activeTab === 3}
@@ -1246,7 +919,7 @@ onDestroy(() => {
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    {#each ['SONumber', 'Reference', 'Amount', 'Client Name', 'Category' ] as column}
+                    {#each ['SONumber', 'Reference', 'Client Name', 'Category', 'Amount'] as column}
                       <th 
                         scope="col" 
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -1270,10 +943,9 @@ onDestroy(() => {
                         {order.SONumber}
                       </td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.referenceNumber}</td>
-		      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.clientName}</td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{order.SOCategory}</td>
-                      
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">₹{order.SOAmount}</td>
                     </tr>
                   {/each}
                 </tbody>
@@ -1303,165 +975,42 @@ onDestroy(() => {
     background-color: #f1f5f9;
   }
 
-@keyframes tooltip-fade-in {
-  from {
+  /* Add these styles to your component or global CSS */
+  .tooltip-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  
+  .tooltip-content {
+    visibility: hidden;
+    position: absolute;
+    z-index: 1000; /* Higher z-index to ensure it's above other elements */
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 125%; /* Position above the element */
+    width: 200px;
+    background-color: #2d3748;
+    color: white;
+    border-radius: 6px;
+    padding: 0;
     opacity: 0;
-    transform: translateY(10px);
+    transition: opacity 0.3s;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    pointer-events: none;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  
+  .tooltip-arrow {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #2d3748;
   }
-}
-
-  /* Add these styles to your existing CSS */
-.expanded-tooltip-view {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-.expanded-tooltip-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  padding: 12px;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.expanded-tooltip-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-/* Adjust the grid layout for SO Numbers tab specifically */
-.so-numbers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-/* Make the expanded card more readable */
-.so-card-expanded {
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-}
-
-.so-card-header {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #2c5282;
-  font-size: 14px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 6px;
-}
-
-.so-card-body p {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-  font-size: 12px;
-}
-
-.so-card-body p span:first-child {
-  color: #4a5568;
-  font-weight: 500;
-}
-
-.tooltip-container {
-  position: relative;
-  z-index: 10;
-}
-
-.tooltip-container .tooltip-content {
-  /* Default centered position */
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-/* Handle potential overflow based on position in the grid */
-.tooltip-container:nth-child(3n) .tooltip-content,
-.tooltip-container:nth-child(4n) .tooltip-content {
-  left: auto;
-  right: 0;
-  transform: translateX(0);
-}
-
-.tooltip-container:nth-child(1) .tooltip-content,
-.tooltip-container:nth-child(4n+1) .tooltip-content {
-  left: 0;
-  transform: translateX(0);
-}
-
-/* Make sure the modal's overflow property doesn't interfere */
-.modal-content {
-  position: relative;
-}
-
-/* This keeps the tooltip visible regardless of overflow settings */
-.overflow-x-auto, .overflow-hidden {
-  overflow: visible !important;
-}
-
-/* Only apply overflow properties to specific child elements */
-.overflow-x-auto > .inline-block, 
-.overflow-hidden > table {
-  overflow-x: auto;
-}
-
-/* Adjust arrow position based on tooltip position */
-.tooltip-container:nth-child(3n) .tooltip-arrow,
-.tooltip-container:nth-child(4n) .tooltip-arrow {
-  left: 85%;
-}
-
-.tooltip-container:nth-child(1) .tooltip-arrow,
-.tooltip-container:nth-child(4n+1) .tooltip-arrow {
-  left: 15%;
-}
-
-
-
-table {
-  position: relative;
-  z-index: 1;
-}
-
-
-/* Ensure tooltips appear above other elements */
-.tooltip-positioning-fix {
-  position: relative;
-  z-index: 10;
-}
-  
-.tooltip-content {
-  position: absolute;
-  z-index: 1100;
-  bottom: calc(100% + 12px);
-  width: 250px;
-  background-color: #2d3748;
-  color: white;
-  border-radius: 8px;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.2s, visibility 0.2s;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-
-  
-.tooltip-arrow {
-  position: absolute;
-  bottom: -8px;
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 8px solid #2d3748;
-}
   
   .tooltip-inner {
     padding: 10px;
@@ -1488,91 +1037,11 @@ table {
     color: #a0aec0;
   }
   
-.tooltip-container:hover .tooltip-content {
-  visibility: visible;
-  opacity: 1;
-  animation: tooltip-fade-in 0.2s ease-out;
-}
-
-/* Check if tooltip would be off-screen to the right and adjust */
-@media (min-width: 640px) {
-  .tooltip-container {
-    position: static; /* Make positioning more predictable */
-  }
-  
-  .tooltip-content {
-    left: 50%;
-    transform: translateX(-50%) translateY(0);
-  }
-  
+  /* Show the tooltip when hovering over the container */
   .tooltip-container:hover .tooltip-content {
-    transform: translateX(-50%) translateY(-2px);
+    visibility: visible;
+    opacity: 1;
   }
-  
-  /* Right-edge detection and repositioning */
-  .tooltip-container:nth-last-child(-n+2) .tooltip-content,
-  .tooltip-container:last-child .tooltip-content {
-    left: auto;
-    right: 0;
-    transform: translateX(0) translateY(0);
-  }
-  
-  .tooltip-container:nth-last-child(-n+2):hover .tooltip-content,
-  .tooltip-container:last-child:hover .tooltip-content {
-    transform: translateX(0) translateY(-2px);
-  }
-}
-
-.tooltip-arrow {
-  position: absolute;
-  bottom: -8px;
-  left: 15%; /* Adjusted from 50% for better alignment */
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 8px solid #2d3748;
-}
-
-/* For right-aligned tooltips, move the arrow */
-@media (min-width: 640px) {
-  .tooltip-arrow {
-    left: 50%;
-  }
-  
-  .tooltip-container:nth-last-child(-n+2) .tooltip-arrow,
-  .tooltip-container:last-child .tooltip-arrow {
-    left: 85%;
-  }
-}
-
-.tooltip-inner {
-  padding: 12px;
-}
-
-.tooltip-title {
-  font-weight: bold;
-  font-size: 14px;
-  border-bottom: 1px solid #4a5568;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  color: #63b3ed;
-}
-
-.tooltip-details p {
-  margin: 6px 0;
-  font-size: 13px;
-  display: flex;
-  justify-content: space-between;
-  line-height: 1.4;
-}
-
-.tooltip-details p span {
-  font-weight: bold;
-  color: #a0aec0;
-}
-
   
   /* Responsive positioning for different screen sizes */
   @media (max-width: 640px) {
