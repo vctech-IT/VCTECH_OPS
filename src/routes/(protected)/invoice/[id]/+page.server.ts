@@ -62,7 +62,6 @@ async function getAuthToken(): Promise<string> {
 
 export const load: PageServerLoad = async ({params, locals}) => {
     
-    try {
         const authToken = await getAuthToken();
        
         // Fetch invoice details using the obtained token
@@ -83,10 +82,6 @@ export const load: PageServerLoad = async ({params, locals}) => {
         
         const invoiceData = await invoiceResponse.json();
 
-                // redirect user if not logged in
-                if (!locals.user) {
-                    throw redirect(302, new URL('/login', 'http://localhost:5173').toString());
-            }
             
                  if (!locals.user) {
                     throw redirect(302, new URL('/login', 'https://vc-tech.vercel.app/').toString());
@@ -95,11 +90,4 @@ export const load: PageServerLoad = async ({params, locals}) => {
             success: true,
             invoiceData
         };
-    } catch (error) {
-        console.error('Error:', error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
-        };
-    }
 };
