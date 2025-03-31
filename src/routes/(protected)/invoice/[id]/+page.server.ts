@@ -1,6 +1,5 @@
 // src/routes/+page.server.ts
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
 
 const CLIENT_ID = '1000.PN9H4DB1F9UMY9NCNC09T1KXOPCY0S';
 const CLIENT_SECRET = 'e7265c042a0e212f0d8f0ed1bc09898e1b3a558371';
@@ -60,16 +59,7 @@ async function getAuthToken(): Promise<string> {
     return data.access_token;
 }
 
-export const load: PageServerLoad = async ({ params, fetch, locals }) => {
-    
-            // redirect user if not logged in
-            if (!locals.user) {
-                throw redirect(302, new URL('/login', 'http://localhost:5173').toString());
-        }
-        
-             if (!locals.user) {
-                throw redirect(302, new URL('/login', 'https://vc-tech.vercel.app/').toString());
-    }
+export const load: PageServerLoad = async ({params}) => {
     
     try {
         const authToken = await getAuthToken();
