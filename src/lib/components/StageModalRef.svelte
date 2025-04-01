@@ -2131,26 +2131,31 @@ async function handleAttachmentChange(event: Event, itemId: string) {
 
 async function handleSaveMaterialToProcure() {
   try{
-  loading.show('Saving material details...');  
-  await tick(); 
-  notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available');
-  const itemsToUpdate = notAvailableItems;
+    loading.show('Saving material details...');  
 
-  if (itemsToUpdate.length === 0) {
-    await Swal.fire('No changes to save.');
-    return;
-  }
+    // Ensure `notAvailableItems` is correctly updated
+    notAvailableItems = lineItemsWithStatus.filter(item => item.status === 'not_available');
 
-  const invalidItems = itemsToUpdate.filter(item => !item.serialNo);
-  if (invalidItems.length > 0) {
-    await Swal.fire({
+    // Validate: Check if any item is missing a Serial No.
+    const missingSerialNumbers = notAvailableItems.some(item => !item.serialNo || item.serialNo.trim() === "");
+
+    if (missingSerialNumbers) {
+      await Swal.fire({
         title: 'Oops...',
-        text: 'Please fill in Serial No. for all selected items.',
+        text: 'Please fill in Serial No. for all selected items before saving.',
         icon: 'error',
         confirmButtonText: 'OK'
       });
-    return;
-  }
+      return;
+    }
+
+    // Proceed with saving since all serial numbers are filled
+    const itemsToUpdate = [...notAvailableItems];
+
+    if (itemsToUpdate.length === 0) {
+      await Swal.fire('No changes to save.');
+      return;
+    }
 
   const itemSummary = itemsToUpdate.map(item => 
     `${item.name}: ${item.isAvailable ? 'Available' : 'Need to purchase locally'}`
@@ -2946,16 +2951,28 @@ $: {
     stageData = stageData;
 }
 
-function updateSerialNo(event, index) {
-    if (notAvailableItems.length > 0 && notAvailableItems[index]) {
-      notAvailableItems[index].serialNo = event.target.value;
-    } else {
-      const filteredItems = lineItemsWithStatus.filter(item => item.serialNo);
-      if (filteredItems[index]) {
-        filteredItems[index].serialNo = event.target.value;
-      }
+function getSerialNo(itemId) {
+  const item = notAvailableItems.length > 0 
+    ? notAvailableItems.find(i => i.Itemid === itemId) 
+    : lineItemsWithStatus.find(i => i.Itemid === itemId);
+
+  return item?.serialNo || "";
+}
+
+function updateSerialNo(event, itemId) {
+  const itemIndex = notAvailableItems.findIndex(i => i.Itemid === itemId);
+  
+  if (notAvailableItems.length > 0 && itemIndex !== -1) {
+    // Update serialNo in notAvailableItems
+    notAvailableItems[itemIndex].serialNo = event.target.value;
+  } else {
+    // Update serialNo in the original list (ensuring persistence)
+    const originalIndex = lineItemsWithStatus.findIndex(i => i.Itemid === itemId);
+    if (originalIndex !== -1) {
+      lineItemsWithStatus[originalIndex].serialNo = event.target.value;
     }
   }
+}
 function updateInvoiceNo(event, index) {
     if (notAvailableItems.length > 0 && notAvailableItems[index]) {
       notAvailableItems[index].invoiceNo = event.target.value;
@@ -4157,10 +4174,8 @@ function fillPreviousStagesData(data: any): { stage0Fetched: boolean, stage1Fetc
                       <input 
                         type="text" 
                         id="serial-no-{item.Itemid}" 
-                        value={notAvailableItems.length > 0 
-                          ? notAvailableItems[index]?.serialNo 
-                          : lineItemsWithStatus.filter(item => item.serialNo)[index]?.serialNo || ""} 
-                        on:input={(event) => updateSerialNo(event, index)} 
+                        value={getSerialNo(item.Itemid)} 
+                        on:input={(event) => updateSerialNo(event, item.Itemid)} 
                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter serial number"
                         required
