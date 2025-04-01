@@ -263,7 +263,7 @@ function toggleCategory(category: string) {
 
   async function goBack() {
       isLoadingNavigate = true;
-      await goto('/');
+      await goto('/salesOrder');
       isLoadingNavigate = false;
   }
 
