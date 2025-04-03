@@ -216,7 +216,7 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
             </span>
             
     <!-- Add the attachment button here -->
-    {#if invoiceData.documents && invoiceData.document.length > 0}
+    {#if deliveryChallan.documents && deliveryChallan.documents.length > 0}
     <div class="relative">
         <button 
             class="bg-white text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center"
@@ -225,7 +225,7 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
             aria-expanded={showDocumentsDropdown}
         >
             <Paperclip size={20} class="mr-2" />
-            <span>Attachments ({invoiceData.document.length})</span>
+            <span>Attachments ({deliveryChallan.document.length})</span>
         </button>
         
         {#if showDocumentsDropdown}
@@ -234,7 +234,7 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
             transition:fly="{{ y: -10, duration: 200 }}"
         >
             <div class="max-h-96 overflow-y-auto">
-                {#each invoiceData.document as doc}
+                {#each deliveryChallan.document as doc}
 <div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
     <div class="flex items-center justify-between">
         <!-- Make the entire document info area clickable -->
