@@ -481,39 +481,45 @@ async function refreshActivityLogs() {
         >
             <div class="max-h-96 overflow-y-auto">
                 {#each salesOrder.documents as doc}
-                <div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="text-gray-800 flex-grow">
-                                <p class="font-medium text-sm truncate" title={doc.file_name}>{doc.file_name}</p>
-                                <p class="text-xs text-gray-500">
-                                    {doc.file_size_formatted} • {doc.uploaded_on_date_formatted}
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button 
-                                on:click={() => handleDocumentView(doc)}
-                                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
-                                title="Preview"
-                            >
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                            </button>
-                            <button 
-                                on:click={() => handleDocumentDownload(doc)}
-                                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
-                                title="Download"
-                            >
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+<div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+    <div class="flex items-center justify-between">
+        <!-- Make the entire document info area clickable -->
+        <div 
+            class="flex items-center space-x-3 flex-grow cursor-pointer"
+            on:click={() => canPreviewFile(doc.file_type) ? handleDocumentView(doc) : handleDocumentDownload(doc)}
+        >
+            <div class="text-gray-800 flex-grow">
+                <p class="font-medium text-sm truncate" title={doc.file_name}>{doc.file_name}</p>
+                <p class="text-xs text-gray-500">
+                    {doc.file_size_formatted} • {doc.uploaded_on_date_formatted}
+                </p>
+            </div>
+        </div>
+        <!-- Keep explicit buttons for additional control -->
+        <div class="flex space-x-2">
+            <button 
+                on:click|stopPropagation={() => handleDocumentView(doc)}
+                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
+                title="Preview"
+                disabled={!canPreviewFile(doc.file_type)}
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+            </button>
+            <button 
+                on:click|stopPropagation={() => handleDocumentDownload(doc)}
+                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
+                title="Download"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
                 {/each}
             </div>
         </div>
