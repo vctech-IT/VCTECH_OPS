@@ -68,9 +68,6 @@
 
   let showDocumentsDropdown = false;
 
-  function toggleDocumentsDropdown() {
-    showDocumentsDropdown = !showDocumentsDropdown;
-  }
 
   function downloadDocument(doc: any) {
     console.log(`Downloading ${doc.file_name}`);
