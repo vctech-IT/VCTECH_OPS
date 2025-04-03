@@ -68,6 +68,7 @@
 
   let showDocumentsDropdown = false;
 
+  console.log("invoice: ",invoiceData);
 
   function downloadDocument(doc: any) {
     console.log(`Downloading ${doc.file_name}`);
@@ -110,7 +111,7 @@
       const token = await getToken(fetch);
       
       // Prepare the URL for the document
-      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${invoiceData.invoice_id}/documents/${doc.document_id}?organization_id=60005679410`;
+      const docUrl = `https://www.zohoapis.in/books/v3/invoices/${invoiceData.invoice_id}/documents/${doc.document_id}?organization_id=60005679410`;
       
       // Fetch the document
       const response = await fetch('/api/proxy-document', {
