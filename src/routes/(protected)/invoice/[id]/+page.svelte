@@ -223,7 +223,7 @@
             </span>
             
     <!-- Add the attachment button here -->
-    {#if invoiceData.documents && invoiceData.document.length > 0}
+    {#if invoiceData.documents && invoiceData.documents.length > 0}
     <div class="relative">
         <button 
             class="bg-white text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center"
