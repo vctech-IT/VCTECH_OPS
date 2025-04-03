@@ -103,7 +103,7 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
       const token = await getToken(fetch);
       
       // Prepare the URL for the document
-      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/documents/${doc.document_id}?organization_id=60005679410`;
+      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${deliveryChallan.deliverychallan_id}/documents/${doc.document_id}?organization_id=60005679410`;
       
       // Fetch the document
       const response = await fetch('/api/proxy-document', {
@@ -143,7 +143,7 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
       const token = await getToken(fetch);
       
       // Prepare the URL for the document
-      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/documents/${doc.document_id}?organization_id=60005679410`;
+      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${deliveryChallan.deliverychallan_id}/documents/${doc.document_id}?organization_id=60005679410`;
       
       // Fetch the document through proxy
       const response = await fetch('/api/proxy-document', {
