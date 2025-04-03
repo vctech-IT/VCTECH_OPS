@@ -20,6 +20,7 @@
   import { ChevronLeft, ChevronRight } from 'svelte-lucide';
   import ChatBox from '$lib/components/Chatbox.svelte';
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
+  import { Paperclip } from 'svelte-lucide';
 
   export let data: PageData;
 
@@ -28,82 +29,6 @@ let logsPerPage = 5;
 let isLoading = false;
 let isLoadingNavigate = false;
 let submissionSuccessful = false;
-let token = '';
-let isLoadingAttachments = false;
-let showDocumentPreview = false;
-let selectedDocument: any = null;
-let documentPreviewUrl = '';
-
-    // Function to check if file can be previewed
-    function canPreviewFile(fileName: string): boolean {
-        const lowerFileName = fileName.toLowerCase();
-        return lowerFileName.endsWith('.pdf') || 
-               lowerFileName.endsWith('.jpg') || 
-               lowerFileName.endsWith('.jpeg') || 
-               lowerFileName.endsWith('.png') || 
-               lowerFileName.endsWith('.gif');
-    }
-    
-// Function to open document preview
-function openDocument(document: any) {
-    selectedDocument = document;
-    // Use our server endpoint for preview
-    documentPreviewUrl = `/api/document-proxy/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
-    showDocumentPreview = true;
-}
-
-async function downloadDocument(document: any) {
-    try {
-        isLoading = true;
-
-        const url = `/api/document-proxy/${salesOrder.salesorder_id}/${document.document_id}?filename=${encodeURIComponent(document.file_name)}`;
-
-        const response = await fetch(url, {
-            headers: { 'purpose': 'download' }
-        });
-
-        if (!response.ok) throw new Error('Download failed');
-
-        const blob = await response.blob();
-        const link = document.createElement('a');
-        const objectUrl = URL.createObjectURL(blob);
-
-        link.href = objectUrl;
-        link.download = document.file_name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
-
-    } catch (error) {
-        console.error('Error downloading document:', error);
-        alert('Failed to download document.');
-    } finally {
-        isLoading = false;
-    }
-}
-
-    
-    // Function to close document preview
-    function closeDocumentPreview() {
-        showDocumentPreview = false;
-        selectedDocument = null;
-        documentPreviewUrl = '';
-    }
-    
-    
-    // Fetch token when component mounts
-    onMount(async () => {
-        try {
-            const response = await fetch('/api/zohoAuthToken');
-            const data = await response.json();
-            token = data.token;
-            console.log("Token fetched successfully");
-        } catch (error) {
-            console.error('Error fetching auth token:', error);
-        }
-    });
 
 
 
@@ -127,6 +52,11 @@ function prevPage() {
 }
 
 function handleClickOutside(event:any) {
+  const target = event.target as HTMLElement;
+    if (!target.closest('.documents-dropdown') && !target.closest('button[aria-haspopup="true"]')) {
+      showDocumentsDropdown = false;
+      showMenuDropdown = false;
+    }
   if (event.target.classList.contains('modal-overlay')) {
     handleClose();
   }
@@ -204,10 +134,134 @@ function getCurrentStageText(stage: number | undefined): string {
 
   $: console.log(data);
 
+
   let showStageUpdateModal = false;
   let showDocumentsDropdown = false;
 
   let isExpanded = false;
+
+    // Document preview modal
+  let showDocumentPreview = false;
+  let previewUrl = '';
+  let previewFileName = '';
+  let previewDocType = '';
+  let isDocLoading = false;
+  
+  // Function to toggle document dropdown
+  function toggleDocumentsDropdown() {
+    showDocumentsDropdown = !showDocumentsDropdown;
+    if (showMenuDropdown) showMenuDropdown = false;
+  }
+
+  
+  // Function to check if file can be previewed
+  function canPreviewFile(fileType: string): boolean {
+    const previewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif'];
+    return previewableTypes.includes(fileType.toLowerCase());
+  }
+  
+  // Function to handle document viewing
+  async function handleDocumentView(doc: any) {
+    showDocumentsDropdown = false;
+    
+    if (!canPreviewFile(doc.file_type)) {
+      // If file can't be previewed, download it directly
+      handleDocumentDownload(doc);
+      return;
+    }
+    
+    try {
+      isDocLoading = true;
+      const token = await getToken(fetch);
+      
+      // Prepare the URL for the document
+      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/documents/${doc.document_id}?organization_id=60005679410`;
+      
+      // Fetch the document
+      const response = await fetch('/api/proxy-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: docUrl,
+          token: token
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch document');
+      }
+      
+      // Get document as blob
+      const blob = await response.blob();
+      previewUrl = URL.createObjectURL(blob);
+      previewFileName = doc.file_name;
+      previewDocType = doc.file_type;
+      showDocumentPreview = true;
+      
+    } catch (error) {
+      console.error('Error fetching document:', error);
+      alert('Failed to load document. Please try downloading instead.');
+    } finally {
+      isDocLoading = false;
+    }
+  }
+  
+  // Function to handle document download
+  async function handleDocumentDownload(doc: any) {
+    try {
+      isDocLoading = true;
+      const token = await getToken(fetch);
+      
+      // Prepare the URL for the document
+      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/documents/${doc.document_id}?organization_id=60005679410`;
+      
+      // Fetch the document through proxy
+      const response = await fetch('/api/proxy-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: docUrl,
+          token: token
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch document');
+      }
+      
+      // Get document as blob
+      const blob = await response.blob();
+      
+      // Create a download link and trigger download
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+      
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Failed to download document. Please try again later.');
+    } finally {
+      isDocLoading = false;
+    }
+  }
+  
+  // Function to close document preview
+  function closeDocumentPreview() {
+    showDocumentPreview = false;
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      previewUrl = '';
+    }
+  }
 
   function toggleExpand() {
   isExpanded = !isExpanded;
@@ -217,9 +271,6 @@ function getCurrentStageText(stage: number | undefined): string {
       showStageUpdateModal = !showStageUpdateModal;
   }
 
-  function toggleDocumentsDropdown() {
-      showDocumentsDropdown = !showDocumentsDropdown;
-  }
 
   function formatDate(dateString: string) {
       return new Date(dateString).toLocaleDateString('en-GB', { 
@@ -236,6 +287,8 @@ function getCurrentStageText(stage: number | undefined): string {
           minimumFractionDigits: 2
       }).format(amount);
   }
+
+
 
 let expandedCategories: Record<string, boolean> = {};
 
@@ -266,7 +319,12 @@ function toggleCategory(category: string) {
       await goto('/salesOrder');
       isLoadingNavigate = false;
   }
-
+  
+  function downloadDocument(doc: any) {
+      // Implement actual download logic here
+      console.log(`Downloading ${doc.file_name}`);
+      // You might want to use a service or API call to handle the actual download
+  }
   let activeTab = 'details';
   function switchTab(tab: any) {
       activeTab = tab;
@@ -281,6 +339,7 @@ let Stage3Data: any;
 let Stage4Data: any;
 
 
+
 onMount(() => {
   logStore.loadLogs();
   const unsubscribe = logStore.subscribe(allLogs => {
@@ -289,8 +348,6 @@ onMount(() => {
 
   return unsubscribe;
 });
-
-
 
 function handleFieldUpdate(fieldName: string, oldValue: string, newValue: string) {
   const logEntry: LogEntry = {
@@ -404,6 +461,65 @@ async function refreshActivityLogs() {
           <span class="px-4 py-2 rounded-full text-sm font-medium bg-white {getStatusColor(salesOrder.status)}">
               {salesOrder.status}
           </span>
+              <!-- Add the attachment button here -->
+    {#if salesOrder.documents && salesOrder.documents.length > 0}
+    <div class="relative">
+        <button 
+            class="bg-white text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center"
+            on:click|stopPropagation={toggleDocumentsDropdown}
+            aria-haspopup="true"
+            aria-expanded={showDocumentsDropdown}
+        >
+            <Paperclip size={20} class="mr-2" />
+            <span>Attachments ({salesOrder.documents.length})</span>
+        </button>
+        
+        {#if showDocumentsDropdown}
+        <div 
+            class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10"
+            transition:fly="{{ y: -10, duration: 200 }}"
+        >
+            <div class="max-h-96 overflow-y-auto">
+                {#each salesOrder.documents as doc}
+                <div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="text-gray-800 flex-grow">
+                                <p class="font-medium text-sm truncate" title={doc.file_name}>{doc.file_name}</p>
+                                <p class="text-xs text-gray-500">
+                                    {doc.file_size_formatted} • {doc.uploaded_on_date_formatted}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button 
+                                on:click={() => handleDocumentView(doc)}
+                                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
+                                title="Preview"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                            </button>
+                            <button 
+                                on:click={() => handleDocumentDownload(doc)}
+                                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
+                                title="Download"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {/each}
+            </div>
+        </div>
+        {/if}
+    </div>
+    {/if}
           {#if salesOrder.status == 'open' || salesOrder.status == 'invoiced' || salesOrder.status == 'partially_invoiced'}
           <button 
               class="bg-white text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center"
@@ -565,98 +681,6 @@ async function refreshActivityLogs() {
                       <p><strong>Last Modified:</strong> {formatDate(salesOrder.last_modified_time)}</p>
                   </div>
               </div>
-
-              <!-- Attachments Section -->
-              <div class="bg-white p-4 rounded-lg shadow mt-6">
-                  <div class="flex items-center justify-between">
-                      <h2 class="text-lg font-semibold text-blue-800">Attachments</h2>
-                      <button 
-                          class="text-blue-600 hover:bg-blue-50 font-medium py-2 px-3 rounded-full transition duration-200 ease-in-out focus:outline-none"
-                          on:click={toggleDocumentsDropdown}
-                      >
-                          {#if showDocumentsDropdown}
-                              <ChevronUp size={20} />
-                          {:else}
-                              <ChevronDown size={20} />
-                          {/if}
-                      </button>
-                  </div>
-                  
-                  {#if showDocumentsDropdown}
-                      <div class="mt-3 space-y-2" transition:fade={{ duration: 200 }}>
-                          {#if salesOrder.documents && salesOrder.documents.length > 0}
-                              {#each salesOrder.documents as document}
-                                  <div class="border border-gray-200 rounded-lg overflow-hidden">
-                                      <div class="flex items-center justify-between p-3 bg-gray-50">
-                                          <div class="flex items-center">
-                                              <div class="bg-blue-100 p-2 rounded-lg mr-3">
-                                                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                                  </svg>
-                                              </div>
-                                              <div>
-                                                  <p class="font-medium text-gray-800">{document.file_name}</p>
-                                                  <p class="text-sm text-gray-500">
-                                                      {document.uploaded_on_date_formatted} • 
-                                                      {document.file_size_formatted} • 
-                                                      Uploaded by {document.uploaded_by}
-                                                  </p>
-                                              </div>
-                                          </div>
-                                          <div class="flex space-x-2">
-                                              <!-- View button for PDF, images -->
-                                              {#if canPreviewFile(document.file_name)}
-                                                  <button 
-                                                      class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md text-sm transition duration-200"
-                                                      on:click={() => openDocument(document)}
-                                                  >
-                                                      View
-                                                  </button>
-                                              {/if}
-                                              <!-- Download button for all files -->
-                                              <button 
-                                                  class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded-md text-sm transition duration-200"
-                                                  on:click={() => downloadDocument(document)}
-                                              >
-                                                  Download
-                                              </button>
-                                          </div>
-                                      </div>
-                                  </div>
-                              {/each}
-                          {:else}
-                              <p class="text-gray-500 italic py-3">No attachments available for this sales order.</p>
-                          {/if}
-                      </div>
-                  {/if}
-              </div>
-
-              <!-- Document preview modal -->
-              {#if showDocumentPreview && selectedDocument}
-                  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" on:click={closeDocumentPreview}>
-                      <div class="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] flex flex-col" on:click|stopPropagation>
-                          <div class="flex justify-between items-center p-4 border-b">
-                              <h3 class="text-lg font-semibold">{selectedDocument.file_name}</h3>
-                              <button 
-                                  class="text-gray-500 hover:text-gray-700"
-                                  on:click={closeDocumentPreview}
-                              >
-                                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                  </svg>
-                              </button>
-                          </div>
-                          <div class="flex-1 overflow-auto p-1">
-                              <iframe 
-                                  title={selectedDocument.file_name}
-                                  src={documentPreviewUrl}
-                                  class="w-full h-full border-0"
-                                  sandbox="allow-scripts allow-same-origin"
-                              ></iframe>
-                          </div>
-                      </div>
-                  </div>
-              {/if}
           </div>
       </div>
   </div>
@@ -774,6 +798,74 @@ async function refreshActivityLogs() {
     }
   }}
 />
+{/if}
+
+{#if showDocumentPreview}
+<div 
+  class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+  on:click|self={closeDocumentPreview}
+  transition:fade={{ duration: 200 }}
+>
+  <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between p-4 border-b">
+      <h3 class="text-lg font-medium">{previewFileName}</h3>
+      <button 
+        class="text-gray-400 hover:text-gray-600"
+        on:click={closeDocumentPreview}
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-100">
+      {#if previewDocType === 'pdf'}
+        <iframe src={previewUrl} title={previewFileName} class="w-full h-full"></iframe>
+      {:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
+        <img src={previewUrl} alt={previewFileName} class="max-w-full max-h-full object-contain" />
+      {:else}
+        <div class="text-center p-8">
+          <p>This file type cannot be previewed.</p>
+          <button 
+            class="mt-4 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+            on:click={() => {
+              const a = document.createElement('a');
+              a.href = previewUrl;
+              a.download = previewFileName;
+              a.click();
+            }}
+          >
+            Download File
+          </button>
+        </div>
+      {/if}
+    </div>
+    <div class="p-4 border-t flex justify-end">
+      <button 
+        class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 flex items-center"
+        on:click={() => {
+          const a = document.createElement('a');
+          a.href = previewUrl;
+          a.download = previewFileName;
+          a.click();
+        }}
+      >
+        <Download size={18} class="mr-2" />
+        Download
+      </button>
+    </div>
+  </div>
+</div>
+{/if}
+
+<!-- Loading Indicator for Document Operations -->
+{#if isDocLoading}
+<div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+  <div class="bg-white p-6 rounded-lg shadow-xl flex items-center">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+    <p>Loading document...</p>
+  </div>
+</div>
 {/if}
 
 {#if isLoading}
