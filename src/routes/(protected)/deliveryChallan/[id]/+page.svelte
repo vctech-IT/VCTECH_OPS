@@ -7,6 +7,7 @@
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import CustomLoader from '$lib/components/CustomLoader.svelte';
   import { fly } from 'svelte/transition';
+ import { fade } from 'svelte/transition';
   
   export let data;
   
