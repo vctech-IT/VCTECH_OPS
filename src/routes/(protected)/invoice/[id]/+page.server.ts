@@ -82,10 +82,10 @@ export const load: PageServerLoad = async ({params, locals}) => {
         
         const invoiceData = await invoiceResponse.json();
 
-            
-                 if (!locals.user) {
-                    throw redirect(302, new URL('/login', 'https://vc-tech.vercel.app/').toString());
-                }
+            // redirect user if not logged in
+            if (!locals.user) {
+                redirect(302, '/login')
+            }
         return {
             success: true,
             invoiceData
