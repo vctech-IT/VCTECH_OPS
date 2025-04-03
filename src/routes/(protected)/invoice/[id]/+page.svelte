@@ -21,6 +21,7 @@
   let previewFileName = '';
   let previewDocType = '';
   let isDocLoading = false;
+  let showMenuDropdown = false;
   
   // Format currency
   const formatCurrency = (amount: number) => {
