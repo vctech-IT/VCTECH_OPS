@@ -445,6 +445,75 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
   <CustomLoader message="Please Wait, Redirecting..." />
 {/if}
 
+<!-- Document Preview Modal -->
+{#if showDocumentPreview}
+<div 
+  class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+  on:click|self={closeDocumentPreview}
+  transition:fade={{ duration: 200 }}
+>
+  <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between p-4 border-b">
+      <h3 class="text-lg font-medium">{previewFileName}</h3>
+      <button 
+        class="text-gray-400 hover:text-gray-600"
+        on:click={closeDocumentPreview}
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-100">
+      {#if previewDocType === 'pdf'}
+        <iframe src={previewUrl} title={previewFileName} class="w-full h-full"></iframe>
+      {:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
+        <img src={previewUrl} alt={previewFileName} class="max-w-full max-h-full object-contain" />
+      {:else}
+        <div class="text-center p-8">
+          <p>This file type cannot be previewed.</p>
+          <button 
+            class="mt-4 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+            on:click={() => {
+              const a = document.createElement('a');
+              a.href = previewUrl;
+              a.download = previewFileName;
+              a.click();
+            }}
+          >
+            Download File
+          </button>
+        </div>
+      {/if}
+    </div>
+    <div class="p-4 border-t flex justify-end">
+      <button 
+        class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 flex items-center"
+        on:click={() => {
+          const a = document.createElement('a');
+          a.href = previewUrl;
+          a.download = previewFileName;
+          a.click();
+        }}
+      >
+        <Download size={18} class="mr-2" />
+        Download
+      </button>
+    </div>
+  </div>
+</div>
+{/if}
+
+<!-- Loading Indicator for Document Operations -->
+{#if isDocLoading}
+<div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+  <div class="bg-white p-6 rounded-lg shadow-xl flex items-center">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+    <p>Loading document...</p>
+  </div>
+</div>
+{/if}
+
 <style>
   :global(body) {
     background-color: #f3f4f6;
