@@ -2,12 +2,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { ArrowLeft, Download, ChevronDown, PaperClip } from 'svelte-lucide';
+  import { ArrowLeft, Download, ChevronDown } from 'svelte-lucide';
   import '$lib/styles/app.css';
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import CustomLoader from '$lib/components/CustomLoader.svelte';
   import { fly } from 'svelte/transition';
  import { fade } from 'svelte/transition';
+ import { Paperclip } from 'svelte-lucide';
   
   export let data;
   
