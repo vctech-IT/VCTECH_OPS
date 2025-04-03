@@ -586,7 +586,7 @@
   on:click|self={closeDocumentPreview}
   transition:fade={{ duration: 200 }}
 >
-  <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+  <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] flex flex-col">
     <div class="flex items-center justify-between p-4 border-b">
       <h3 class="text-lg font-medium">{previewFileName}</h3>
       <button 
@@ -598,9 +598,9 @@
         </svg>
       </button>
     </div>
-    <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-100">
+    <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-100" style="min-height: 70vh;">
       {#if previewDocType === 'pdf'}
-        <iframe src={previewUrl} title={previewFileName} class="w-full h-full"></iframe>
+        <iframe src={previewUrl} title={previewFileName} class="w-full h-full" style="min-height: 100%;"></iframe>
       {:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
         <img src={previewUrl} alt={previewFileName} class="max-w-full max-h-full object-contain" />
       {:else}
@@ -637,6 +637,7 @@
   </div>
 </div>
 {/if}
+
 
 <!-- Loading Indicator for Document Operations -->
 {#if isDocLoading}
