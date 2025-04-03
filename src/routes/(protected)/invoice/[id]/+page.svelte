@@ -233,7 +233,7 @@
             aria-expanded={showDocumentsDropdown}
         >
             <Paperclip size={20} class="mr-2" />
-            <span>Attachments ({invoiceData.document.length})</span>
+            <span>Attachments ({invoiceData.documents.length})</span>
         </button>
         
         {#if showDocumentsDropdown}
