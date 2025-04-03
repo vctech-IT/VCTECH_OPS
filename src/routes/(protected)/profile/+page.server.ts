@@ -8,14 +8,10 @@ const prisma = new PrismaClient();
 export const load: PageServerLoad = async ({ locals }) => {
   const userId = locals.user?.id;
 
-  // redirect user if not logged in
-      if (!locals.user) {
-        throw redirect(302, new URL('/login', 'http://localhost:5173').toString());
-    }
-    
-      if (!locals.user) {
-        throw redirect(302, new URL('/login', 'https://vc-tech.vercel.app/').toString());
-    }
+            // redirect user if not logged in
+            if (!locals.user) {
+                redirect(302, '/login')
+            }
 
   if (!userId) {
     throw error(401, 'Unauthorized');
