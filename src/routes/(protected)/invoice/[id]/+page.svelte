@@ -9,6 +9,7 @@
   import CustomLoader from '$lib/components/CustomLoader.svelte';
   import { Paperclip } from 'svelte-lucide';
   import { fly } from 'svelte/transition';
+ import { fade } from 'svelte/transition';
   
   export let data: PageData;
   
