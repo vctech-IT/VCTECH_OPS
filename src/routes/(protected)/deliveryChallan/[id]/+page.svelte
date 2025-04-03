@@ -6,6 +6,7 @@
   import '$lib/styles/app.css';
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import CustomLoader from '$lib/components/CustomLoader.svelte';
+  import { fly } from 'svelte/transition';
   
   export let data;
   
@@ -17,6 +18,7 @@
   let previewFileName = '';
   let previewDocType = '';
   let isDocLoading = false;
+  let showMenuDropdown = false;
   
 const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
   return new Intl.NumberFormat('en-IN', {
@@ -26,6 +28,12 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
     maximumFractionDigits: 2
   }).format(amount).replace('₹', currencySymbol);
 };
+
+  async function getToken(fetch: typeof globalThis.fetch): Promise<string> {
+      const tokenResponse = await fetch('/api/zohoAuthToken');
+      const { token } = await tokenResponse.json();
+      return token;
+  }
   
   // Format date
   const formatDate = (dateString: string) => {
