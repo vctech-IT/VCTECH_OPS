@@ -8,6 +8,7 @@
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import CustomLoader from '$lib/components/CustomLoader.svelte';
   import { Paperclip } from 'svelte-lucide';
+  import { fly } from 'svelte/transition';
   
   export let data: PageData;
   
@@ -22,6 +23,7 @@
   let previewDocType = '';
   let isDocLoading = false;
   let showMenuDropdown = false;
+
   
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -32,6 +34,12 @@
       maximumFractionDigits: 2
     }).format(amount);
   };
+
+  async function getToken(fetch: typeof globalThis.fetch): Promise<string> {
+      const tokenResponse = await fetch('/api/zohoAuthToken');
+      const { token } = await tokenResponse.json();
+      return token;
+  }
   
   // Format date
   const formatDate = (dateString: string) => {
