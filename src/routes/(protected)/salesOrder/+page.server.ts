@@ -5,9 +5,10 @@ import { redirect } from '@sveltejs/kit'
 
 export const load: PageServerLoad = async ({ url, locals }) => {
     
-    if (!locals.user) {
-        throw redirect(302, new URL('/login', 'https://vc-tech.vercel.app/').toString());
-    }
+            // redirect user if not logged in
+            if (!locals.user) {
+                redirect(302, '/login')
+            }
     
     // Extract query parameters
     const page = parseInt(url.searchParams.get('page') || '1');
