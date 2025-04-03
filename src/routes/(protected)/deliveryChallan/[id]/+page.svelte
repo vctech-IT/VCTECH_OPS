@@ -11,6 +11,12 @@
   
   const { deliveryChallan } = data;
   let isLoadingNavigate = false;
+  // Document preview modal
+  let showDocumentPreview = false;
+  let previewUrl = '';
+  let previewFileName = '';
+  let previewDocType = '';
+  let isDocLoading = false;
   
 const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
   return new Intl.NumberFormat('en-IN', {
@@ -55,13 +61,134 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
 
   let showDocumentsDropdown = false;
 
-  function toggleDocumentsDropdown() {
-    showDocumentsDropdown = !showDocumentsDropdown;
-  }
-
   function downloadDocument(doc: any) {
     console.log(`Downloading ${doc.file_name}`);
     // Implement actual download logic here
+  }
+
+  
+  // Function to toggle document dropdown
+  function toggleDocumentsDropdown() {
+    showDocumentsDropdown = !showDocumentsDropdown;
+    if (showMenuDropdown) showMenuDropdown = false;
+  }
+  
+  // Function to close dropdowns when clicking outside
+  function handleClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.documents-dropdown') && !target.closest('button[aria-haspopup="true"]')) {
+      showDocumentsDropdown = false;
+      showMenuDropdown = false;
+    }
+  }
+  
+  // Function to check if file can be previewed
+  function canPreviewFile(fileType: string): boolean {
+    const previewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif'];
+    return previewableTypes.includes(fileType.toLowerCase());
+  }
+  
+  // Function to handle document viewing
+  async function handleDocumentView(doc: any) {
+    showDocumentsDropdown = false;
+    
+    if (!canPreviewFile(doc.file_type)) {
+      // If file can't be previewed, download it directly
+      handleDocumentDownload(doc);
+      return;
+    }
+    
+    try {
+      isDocLoading = true;
+      const token = await getToken(fetch);
+      
+      // Prepare the URL for the document
+      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/documents/${doc.document_id}?organization_id=60005679410`;
+      
+      // Fetch the document
+      const response = await fetch('/api/proxy-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: docUrl,
+          token: token
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch document');
+      }
+      
+      // Get document as blob
+      const blob = await response.blob();
+      previewUrl = URL.createObjectURL(blob);
+      previewFileName = doc.file_name;
+      previewDocType = doc.file_type;
+      showDocumentPreview = true;
+      
+    } catch (error) {
+      console.error('Error fetching document:', error);
+      alert('Failed to load document. Please try downloading instead.');
+    } finally {
+      isDocLoading = false;
+    }
+  }
+  
+  // Function to handle document download
+  async function handleDocumentDownload(doc: any) {
+    try {
+      isDocLoading = true;
+      const token = await getToken(fetch);
+      
+      // Prepare the URL for the document
+      const docUrl = `https://www.zohoapis.in/books/v3/salesorders/${salesOrder.salesorder_id}/documents/${doc.document_id}?organization_id=60005679410`;
+      
+      // Fetch the document through proxy
+      const response = await fetch('/api/proxy-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: docUrl,
+          token: token
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch document');
+      }
+      
+      // Get document as blob
+      const blob = await response.blob();
+      
+      // Create a download link and trigger download
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+      
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Failed to download document. Please try again later.');
+    } finally {
+      isDocLoading = false;
+    }
+  }
+  
+  // Function to close document preview
+  function closeDocumentPreview() {
+    showDocumentPreview = false;
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      previewUrl = '';
+    }
   }
 </script>
 
@@ -88,32 +215,71 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
               {(deliveryChallan?.challan_status || '')?.replace(/_/g, ' ').toUpperCase()}
             </span>
             
-            {#if deliveryChallan?.documents && deliveryChallan.documents.length > 0}
-              <div class="relative">
-                <button 
-                  class="bg-white text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center"
-                  on:click={toggleDocumentsDropdown}
-                >
-                  <Download size={20} class="mr-2" />
-                  <span>Documents</span>
-                  <ChevronDown size={20} class="ml-2" />
-                </button>
-                
-                {#if showDocumentsDropdown}
-                  <div class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg overflow-hidden z-10">
-                    {#each deliveryChallan.documents as doc}
-                      <button 
-                        class="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center"
-                        on:click={() => downloadDocument(doc)}
-                      >
-                        <Download size={16} class="mr-2" />
-                        <span>{doc.file_name}</span>
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/if}
+    <!-- Add the attachment button here -->
+    {#if invoiceData.documents && invoiceData.document.length > 0}
+    <div class="relative">
+        <button 
+            class="bg-white text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center"
+            on:click|stopPropagation={toggleDocumentsDropdown}
+            aria-haspopup="true"
+            aria-expanded={showDocumentsDropdown}
+        >
+            <Paperclip size={20} class="mr-2" />
+            <span>Attachments ({invoiceData.document.length})</span>
+        </button>
+        
+        {#if showDocumentsDropdown}
+        <div 
+            class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10"
+            transition:fly="{{ y: -10, duration: 200 }}"
+        >
+            <div class="max-h-96 overflow-y-auto">
+                {#each invoiceData.document as doc}
+<div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+    <div class="flex items-center justify-between">
+        <!-- Make the entire document info area clickable -->
+        <div 
+            class="flex items-center space-x-3 flex-grow cursor-pointer"
+            on:click={() => canPreviewFile(doc.file_type) ? handleDocumentView(doc) : handleDocumentDownload(doc)}
+        >
+            <div class="text-gray-800 flex-grow">
+                <p class="font-medium text-sm truncate" title={doc.file_name}>{doc.file_name}</p>
+                <p class="text-xs text-gray-500">
+                    {doc.file_size_formatted} • {doc.uploaded_on_date_formatted}
+                </p>
+            </div>
+        </div>
+        <!-- Keep explicit buttons for additional control -->
+        <div class="flex space-x-2">
+            <button 
+                on:click|stopPropagation={() => handleDocumentView(doc)}
+                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
+                title="Preview"
+                disabled={!canPreviewFile(doc.file_type)}
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+            </button>
+            <button 
+                on:click|stopPropagation={() => handleDocumentDownload(doc)}
+                class="p-1 text-blue-600 hover:bg-blue-50 rounded-full"
+                title="Download"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+                {/each}
+            </div>
+        </div>
+        {/if}
+    </div>
+    {/if}
           </div>
         </div>
       </div>
