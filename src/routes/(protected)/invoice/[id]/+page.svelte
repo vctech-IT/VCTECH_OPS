@@ -243,7 +243,7 @@
             transition:fly="{{ y: -10, duration: 200 }}"
         >
             <div class="max-h-96 overflow-y-auto">
-                {#each invoiceData.document as doc}
+                {#each invoiceData.documents as doc}
 <div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
     <div class="flex items-center justify-between">
         <!-- Make the entire document info area clickable -->
