@@ -570,15 +570,17 @@ async function refreshActivityLogs() {
           <div class="p-6 space-y-8">
               <!-- Order Summary -->
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div class="bg-blue-50 p-4 rounded-lg shadow">
-                      <h2 class="text-lg font-semibold text-blue-800 mb-2">From</h2>
-                      <p class="font-medium">VC TECHNOSOLUTIONS PRIVATE LIMITED</p>
-                      <p>Office No-607, 608 Mayuresh Cosmos,
-                          Plot No 37, Sector - 11, CBD Belapur</p>
-                      <p>Navi Mumbai, Maharashtra 400614</p>
-                      <p>India</p>
-                      <p class="mt-2 text-blue-600">GSTIN: 27AAHCV4369B1Z8</p>
-                  </div>
+          <div class="bg-blue-50 p-4 rounded-lg shadow">
+            <h2 class="text-lg font-semibold text-blue-800 mb-2">From</h2>
+            <p class="font-medium">VC TECHNOSOLUTIONS PRIVATE LIMITED</p>
+            <p>VC Technosolutions Corporate Office</p>
+            <p>Plot No 17-25, Sector - 17, Kamothe</p>
+            <p>Navi Mumbai Maharashtra 410209</p>
+            <p>India</p>
+            <p class="mt-2 text-blue-600">GSTIN: 27AAHCV4369B1Z8</p>
+          </div>
+
+
 
                   <div class="bg-blue-50 p-4 rounded-lg shadow">
                       <h2 class="text-lg font-semibold text-blue-800 mb-2">Billing Address</h2>
