@@ -308,12 +308,11 @@
           <div class="bg-blue-50 p-4 rounded-lg shadow">
             <h2 class="text-lg font-semibold text-blue-800 mb-2">From</h2>
             <p class="font-medium">VC TECHNOSOLUTIONS PRIVATE LIMITED</p>
-            <p>Office No-607, 608 Mayuresh Cosmos,</p>
-            <p>Plot No 37, Sector - 11, CBD Belapur</p>
-            <p>Navi Mumbai, Maharashtra 410209</p>
+            <p>VC Technosolutions Corporate Office</p>
+            <p>Plot No 17-25, Sector - 17, Kamothe</p>
+            <p>Navi Mumbai Maharashtra 410209</p>
             <p>India</p>
             <p class="mt-2 text-blue-600">GSTIN: 27AAHCV4369B1Z8</p>
-            <p class="text-blue-600">UDYAM Registration: UDYAM-MH-27-0000854</p>
           </div>
 
           <div class="bg-blue-50 p-4 rounded-lg shadow">
