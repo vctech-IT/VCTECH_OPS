@@ -826,18 +826,17 @@ async function refreshActivityLogs() {
         </svg>
       </button>
     </div>
-    <div class="flex-1 p-0 bg-gray-100 relative" style="height: 75vh;">
-<div class="flex-1 overflow-hidden p-0 flex items-center justify-center bg-gray-100" style="min-height: 70vh;">
-  {#if previewDocType === 'pdf'}
-    <div class="w-full h-full overflow-hidden">
-      <iframe 
-        src={previewUrl + '#view=FitH'} 
-        title={previewFileName} 
-        class="w-full h-full border-0" 
-        style="max-height: 100%; max-width: 100%;"
-      ></iframe>
-    </div>
-  {:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
+    <div class="flex-1 overflow-hidden p-0 flex items-center justify-center bg-gray-100" style="min-height: 70vh;">
+      {#if previewDocType === 'pdf'}
+        <div class="w-full h-full overflow-hidden">
+          <iframe 
+            src={previewUrl + '#view=FitH'} 
+            title={previewFileName} 
+            class="w-full h-full border-0" 
+            style="max-height: 100%; max-width: 100%;"
+          ></iframe>
+        </div>
+      {:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
         <div class="w-full h-full flex items-center justify-center overflow-hidden">
           <img 
             src={previewUrl} 
@@ -880,7 +879,6 @@ async function refreshActivityLogs() {
   </div>
 </div>
 {/if}
-</div>
 
 
 <!-- Loading Indicator for Document Operations -->
