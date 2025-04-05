@@ -455,7 +455,6 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
   <CustomLoader message="Please Wait, Redirecting..." />
 {/if}
 
-<!-- Document Preview Modal -->
 {#if showDocumentPreview}
 <div 
   class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
@@ -474,19 +473,23 @@ const formatCurrency = (amount: number, currencySymbol: string = '₹') => {
         </svg>
       </button>
     </div>
-    <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-100" style="min-height: 70vh;">
-      {#if previewDocType.toLowerCase() === 'pdf'}
-        <!-- Use sandbox to improve security with PDF iframes -->
-        <iframe 
-          src={previewUrl} 
-          title={previewFileName} 
-          class="w-full h-full" 
-          style="min-height: 100%;" 
-          sandbox="allow-scripts allow-same-origin"
-          loading="lazy"
-        ></iframe>
-      {:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
-        <img src={previewUrl} alt={previewFileName} class="max-w-full max-h-full object-contain" />
+    <div class="flex-1 overflow-hidden p-0 flex items-center justify-center bg-gray-100" style="min-height: 70vh;">
+{#if previewDocType === 'pdf'}
+  <iframe 
+    src={previewUrl} 
+    title={previewFileName} 
+    class="w-full h-full border-0" 
+    style="min-height: 100%; width: 100%; height: 100vh;"
+  ></iframe>
+{:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
+        <div class="w-full h-full flex items-center justify-center overflow-hidden">
+          <img 
+            src={previewUrl} 
+            alt={previewFileName} 
+            class="max-w-full max-h-[65vh] object-contain" 
+            style="display: block; margin: auto;"
+          />
+        </div>
       {:else}
         <div class="text-center p-8">
           <p>This file type cannot be previewed.</p>
