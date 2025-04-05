@@ -815,7 +815,7 @@ onDestroy(() => {
       <div class="flex items-center space-x-4 mb-4">
 
       <button 
-      class="bg-sky-950 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center"
+      class="bg-sky-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center"
       on:click={() => fetchDashboardData()}
     >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
