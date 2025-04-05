@@ -826,15 +826,14 @@ async function refreshActivityLogs() {
         </svg>
       </button>
     </div>
-    <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-100" style="min-height: 70vh;">
-{#if previewDocType === 'pdf'}
-  <iframe 
-    src={previewUrl} 
-    title={previewFileName} 
-    class="w-full h-full border-0" 
-    style="min-height: 100%; width: 100%; height: 100vh;"
-  ></iframe>
-{:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
+    <div class="flex-1 p-0 bg-gray-100 relative" style="height: 75vh;">
+      {#if previewDocType === 'pdf'}
+        <iframe 
+          src={previewUrl + '#view=FitH'} 
+          title={previewFileName} 
+          class="absolute inset-0 w-full h-full border-0" 
+        ></iframe>
+      {:else if ['jpg', 'jpeg', 'png', 'gif'].includes(previewDocType.toLowerCase())}
         <div class="w-full h-full flex items-center justify-center overflow-hidden">
           <img 
             src={previewUrl} 
