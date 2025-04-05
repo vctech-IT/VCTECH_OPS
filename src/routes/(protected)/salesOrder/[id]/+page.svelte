@@ -880,6 +880,7 @@ async function refreshActivityLogs() {
   </div>
 </div>
 {/if}
+</div>
 
 
 <!-- Loading Indicator for Document Operations -->
