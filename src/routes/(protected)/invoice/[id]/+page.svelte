@@ -648,6 +648,17 @@
 </div>
 {/if}
 
+<!-- Loading Indicator for Document Operations -->
+{#if isDocLoading}
+<div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+  <div class="bg-white p-6 rounded-lg shadow-xl flex items-center">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+    <p>Loading document...</p>
+  </div>
+</div>
+{/if}
+
+
 {#if isLoadingNavigate}
   <CustomLoader message="Please Wait, Redirecting..." />
 {/if}
