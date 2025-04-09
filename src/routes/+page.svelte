@@ -434,6 +434,7 @@ function showSONumbers(item: string, type: 'client' | 'category') {
 
 
 async function fetchDashboardData() {
+ isLoadingKPIData = true;
   try {
     const response = await fetch('/api/dashboard-data', {
       method: 'POST',
