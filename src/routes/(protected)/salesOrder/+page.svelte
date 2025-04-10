@@ -6,7 +6,7 @@
   import { browser } from '$app/environment';
   import { Filter, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-svelte';
   import { onMount, onDestroy } from 'svelte';
-
+  import { debounce } from './debounce'; // Create this utility in the same directory
 
   export let data;
 
@@ -14,6 +14,10 @@
   let isLoading = false;
   let isFilterModalOpen = false;
   
+  // Memoized data to avoid unnecessary re-renders
+  let salesOrders = data.salesOrders;
+  let previousSearchParams = new URLSearchParams($page.url.searchParams).toString();
+
   // Search and filtering
   let searchTerm = data.search || '';
   let selectedStatuses = data.sortColumn === 'orderStatus' ? (data.orderStatus || '').split(',') : [];
@@ -33,6 +37,14 @@
   // Pagination options
   let paginationOptions = [10, 25, 50, 100];
   let itemsPerPage = parseInt(data.limit) || 10;
+  let currentPage = data.page;
+  
+  // Status mapping cache
+  const opsStatusNameCache = {};
+  const statusClassesCache = {};
+
+  // Create a debounced version of updateFilters
+  const debouncedUpdateFilters = debounce(updateFilters, 300);
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'ArrowRight' && currentPage < totalPages) {
@@ -50,8 +62,12 @@
     window.removeEventListener('keydown', handleKeydown);
   });
 
-  // Map operational stage numbers to human-readable names
+  // Map operational stage numbers to human-readable names with caching
   function getOpsStatusName(stage: number): string {
+    if (opsStatusNameCache[stage] !== undefined) {
+      return opsStatusNameCache[stage];
+    }
+
     const stageMap = {
       0: "New",
       1: "Processing",
@@ -60,7 +76,10 @@
       4: "Installation",
       5: "Completed"
     };
-    return stageMap[stage] || `Stage ${stage}`;
+    
+    const result = stageMap[stage] || `Stage ${stage}`;
+    opsStatusNameCache[stage] = result;
+    return result;
   }
 
   // Update URL and refetch data when filters change
@@ -105,17 +124,19 @@
     if (maxTotal) params.set('maxTotal', maxTotal);
     else params.delete('maxTotal');
     
-    goto(`?${params.toString()}`, { keepFocus: true, noScroll: true });
+    const newParamsString = params.toString();
+    
+    // Only navigate if parameters actually changed
+    if (newParamsString !== previousSearchParams) {
+      previousSearchParams = newParamsString;
+      goto(`?${newParamsString}`, { keepFocus: true, noScroll: true });
+    }
   }
 
   // Function to handle search input (with debounce)
-  let searchTimeout: NodeJS.Timeout;
   function handleSearch() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      currentPage = 1;
-      updateFilters();
-    }, 300);
+    currentPage = 1;
+    debouncedUpdateFilters();
   }
 
   // Toggle sort column and direction
@@ -129,7 +150,7 @@
     updateFilters();
   }
 
-  // Toggle status filter
+  // Toggle status filter with optimized updating
   function toggleStatusFilter(status: string) {
     if (selectedStatuses.includes(status)) {
       selectedStatuses = selectedStatuses.filter(s => s !== status);
@@ -206,19 +227,74 @@
     goto(`/salesOrder/${soID}`);
   }
 
-  // Pagination Functions
+  // Format Status Display with caching
+  function getStatusClasses(status: string): string {
+    const key = status.toLowerCase();
+    
+    if (statusClassesCache[key] !== undefined) {
+      return statusClassesCache[key]; 
+    }
+    
+    let result;
+    switch (key) {
+      case 'draft':
+        result = 'bg-yellow-100 text-yellow-800';
+        break;
+      case 'confirmed':
+      case 'approved':
+        result = 'bg-green-100 text-green-800';
+        break;
+      case 'cancelled':
+      case 'rejected':
+        result = 'bg-red-100 text-red-800';
+        break;
+      case 'completed':
+        result = 'bg-blue-100 text-blue-800';
+        break;
+      case 'pending':
+        result = 'bg-orange-100 text-orange-800';
+        break;
+      case 'paid':
+        result = 'bg-emerald-100 text-emerald-800';
+        break;
+      case 'partially paid':
+        result = 'bg-sky-100 text-sky-800';
+        break;
+      default:
+        result = 'bg-gray-100 text-gray-800';
+    }
+    
+    statusClassesCache[key] = result;
+    return result;
+  }
+
+  // Pagination Functions - Optimized
+  // Memoize pagination range calculation
+  let previousTotalPages = 0;
+  let previousCurrentPage = 0;
+  let cachedPaginationRange = [];
+  
   function getPaginationRange() {
     const totalPages = Math.ceil(totalSalesOrders / itemsPerPage);
     
+    // Return cached range if inputs haven't changed
+    if (totalPages === previousTotalPages && currentPage === previousCurrentPage) {
+      return cachedPaginationRange;
+    }
+    
+    previousTotalPages = totalPages;
+    previousCurrentPage = currentPage;
+    
     // For smaller number of pages, show all
     if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
+      cachedPaginationRange = Array.from({ length: totalPages }, (_, i) => i + 1);
+      return cachedPaginationRange;
     }
     
     // For larger number of pages, use a smart range with ellipses
     let pages = [];
     
-    // Always include first and last page
+    // Always include first page
     pages.push(1);
     
     // Logic for middle pages
@@ -236,36 +312,13 @@
     // Add last page
     pages.push(totalPages);
     
+    cachedPaginationRange = pages;
     return pages;
   }
 
   function changePage(newPage: any) {
     currentPage = newPage;
     updateFilters();
-  }
-
-  // Format Status Display
-  function getStatusClasses(status: string): string {
-    switch (status.toLowerCase()) {
-      case 'draft':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'confirmed':
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'completed':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-orange-100 text-orange-800';
-      case 'paid':
-        return 'bg-emerald-100 text-emerald-800';
-      case 'partially paid':
-        return 'bg-sky-100 text-sky-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
   }
 
   // Format Ops Status Display
@@ -289,7 +342,6 @@
   }
 
   // Computed Properties
-  // Reactive variables from data
   $: salesOrders = data.salesOrders;
   $: totalSalesOrders = data.totalSalesOrders;
   $: availableStatuses = data.availableStatuses;
@@ -297,8 +349,6 @@
   $: availableInvoiceStatuses = data.availableInvoiceStatuses;
   $: availablePaymentStatuses = data.availablePaymentStatuses;
   $: availableOpsStatuses = data.availableOpsStatuses;
-  $: currentPage = data.page;
-  $: itemsPerPage = data.limit;
   $: error = data.error;
   $: totalPages = Math.ceil(totalSalesOrders / itemsPerPage);
   $: hasStatusFilters = selectedStatuses.length > 0;
@@ -312,7 +362,6 @@
                     hasInvoiceStatusFilters || hasPaymentStatusFilters || 
                     hasOpsStatusFilters || hasDateFilters || hasTotalFilters;
   $: isLoading = $navigating !== null;
-
 </script>
 
 <div class="container mx-auto px-4 py-8 max-w-7xl">
