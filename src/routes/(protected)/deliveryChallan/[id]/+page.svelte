@@ -105,7 +105,7 @@ async function downloadDeliveryChallanPdf() {
     const token = await getToken(fetch);
     
     // Prepare the URL for the PDF
-    const pdfUrl = `https://www.zohoapis.in/books/v3/deliverychallans/pdf?organization_id=60005679410&deliverychallan_ids=${deliveryChallan.deliverychallan_id}`;
+    const pdfUrl = `https://www.zohoapis.in/books/v3/deliverychallans/${deliveryChallan.deliverychallan_id}?organization_id=60005679410`;
     
     // Fetch the PDF through proxy
     const response = await fetch('/api/proxy-document', {
