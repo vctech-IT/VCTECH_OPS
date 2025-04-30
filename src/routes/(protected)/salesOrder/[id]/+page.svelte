@@ -369,6 +369,51 @@ function handleFieldUpdate(fieldName: string, oldValue: string, newValue: string
       return token;
   }
 
+async function downloadSalesOrderPdf() {
+  try {
+    isDocLoading = true;
+    const token = await getToken(fetch);
+    
+    // Prepare the URL for the PDF
+    const pdfUrl = `https://www.zohoapis.in/books/v3/salesorders/pdf?organization_id=60005679410&salesorder_ids=${salesOrder.salesorder_id}`;
+    
+    // Fetch the PDF through proxy
+    const response = await fetch('/api/proxy-document', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        url: pdfUrl,
+        token: token
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch PDF');
+    }
+    
+    // Get PDF as blob
+    const blob = await response.blob();
+    
+    // Create a download link and trigger download
+    const downloadUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `SalesOrder_${salesOrder.salesorder_number}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(downloadUrl);
+    
+  } catch (error) {
+    console.error('Error downloading PDF:', error);
+    alert('Failed to download PDF. Please try again later.');
+  } finally {
+    isDocLoading = false;
+  }
+}
+
 async function handleDropSalesOrder() {
   if (confirm('Are you sure you want to drop this sales order? This action cannot be undone.')) {
       try {
@@ -461,7 +506,15 @@ async function refreshActivityLogs() {
           <span class="px-4 py-2 rounded-full text-sm font-medium bg-white {getStatusColor(salesOrder.status)}">
               {salesOrder.status}
           </span>
-              <!-- Add the attachment button here -->
+      <button 
+        class="bg-white text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center"
+        on:click={downloadSalesOrderPdf}
+        aria-label="Download PDF"
+    >
+        <Download size={20} class="mr-2" />
+        <span>PDF</span>
+    </button>
+
     {#if salesOrder.documents && salesOrder.documents.length > 0}
     <div class="relative">
         <button 
