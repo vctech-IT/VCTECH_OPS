@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
 
 
 export async function sendPasswordResetEmail(email: string, resetToken: string) {
-  const resetUrl = `http://vc-tech.vercel.app/reset-password?token=${resetToken}`;
+  const resetUrl = `https://ops.vctechnosolutions.com/reset-password?token=${resetToken}`;
 
   const mailOptions = {
     from: '"VC Tech" <noreply@yvctech.com>',
@@ -255,7 +255,7 @@ export async function sendAdminNotification(newUser: any, adminEmail: string, ad
                         </tr>
                     </table>
                     <p style="margin-top: 20px;">Please log in to the admin panel to review and approve this user registration.</p>
-                    <a href="https://vc-tech.vercel.app/admin" style="display: inline-block; padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">Go to Admin Panel</a>
+                    <a href="https://ops.vctechnosolutions.com/admin" style="display: inline-block; padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">Go to Admin Panel</a>
                 </div>
                 <div style="background-color: #f8f8f8; padding: 10px 20px; font-size: 12px; color: #666; text-align: center;">
                     <p>This is an automated message. Please do not reply to this email.</p>
@@ -306,7 +306,7 @@ export async function sendUserApprovalNotification(userEmail: string, username: 
                         <li>Connect with other users and start collaborating</li>
                     </ol>
                     <p>If you have any questions or need assistance getting started, our support team is here to help.</p>
-                    <a href="https://vc-tech.vercel.app/login" style="display: inline-block; padding: 10px 20px; background-color: #2ecc71; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">Log In Now</a>
+                    <a href="https://ops.vctechnosolutions.com/login" style="display: inline-block; padding: 10px 20px; background-color: #2ecc71; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">Log In Now</a>
                     <p style="margin-top: 20px;">We're excited to see what you'll achieve with our platform!</p>
                     <p>Best regards,<br>The VC Tech Team</p>
                 </div>
