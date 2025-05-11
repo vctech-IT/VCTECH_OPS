@@ -72,6 +72,7 @@ model Stage0 {
   activityLogs   ActivityLog[]
   stageHistory StageHistory[]
   chatMessages ChatMessage[]
+  stageAgingHistory StageAgingHistory[]
 }
 
 model Stage1 {
@@ -215,6 +216,19 @@ model StageHistory {
   SO        Stage0   @relation(fields: [SONumber], references: [SONumber])
 
   @@index([SONumber])
+}
+
+model StageAgingHistory {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  SONumber       String
+  stage          Int
+  startTime      DateTime // When the order entered this stage
+  endTime        DateTime // When the order left this stage
+  durationHours  Float    // Duration in hours the order spent in this stage
+  SO             Stage0   @relation(fields: [SONumber], references: [SONumber])
+
+  @@index([SONumber])
+  @@index([stage])
 }
 
 model ChatMessage {

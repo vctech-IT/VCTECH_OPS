@@ -19,12 +19,32 @@ import { quintOut } from 'svelte/easing';
 import {  Eye, EyeOff, Filter, LayoutGrid, List } from 'lucide-svelte';
 import { ArrowUpDown } from 'lucide-svelte';
 import { ChevronDown, ChevronUp, Search } from 'lucide-svelte';
-import { Interface } from 'readline';
 import CustomLoader from '$lib/components/CustomLoader.svelte';
 
 
 
+interface StageAgingSummary {
+  stage: number;
+  averageDuration: number;
+  minDuration: number;
+  maxDuration: number;
+  count: number;
+}
 
+interface AgingHistoryItem {
+  SONumber: string;
+  stage: number;
+  startTime: string;
+  endTime: string;
+  durationHours: number;
+  SO?: {
+    clientName: string;
+    SOCategory: string;
+    PMName: string;
+    orderStatus: string;
+    invoiceStatus: string;
+  };
+}
 interface DashboardState {
   activeTab: number;
   orderStatus: string;
@@ -60,6 +80,15 @@ interface DashboardState {
     pmNames: string[];
     invoiceStatuses: string[];
   };
+  stageAgingSummary: StageAgingSummary[];
+  agingHistoryData: AgingHistoryItem[];
+  showAgingModal: boolean;
+  agingModalContent: {
+    title: string;
+    data: AgingHistoryItem[];
+    summary?: StageAgingSummary;
+    averageDuration?: number;
+  };
 }
 
 let totalOrders = 0;
@@ -87,6 +116,18 @@ let selectedPM: string = 'all';
 let isLoadingKPIData = false;
 let invoiceStatus = 'not_invoiced';
 let invoiceStatuses: string[] = [];
+let stageAgingSummary: StageAgingSummary[] = [];
+let agingHistoryData: AgingHistoryItem[] = [];
+let showAgingModal = false;
+let agingModalContent: {
+  title: string;
+  data: AgingHistoryItem[];
+  summary?: StageAgingSummary;
+  averageDuration?: number;
+} = {
+  title: 'Stage Aging Details',
+  data: []
+};
 
 interface OrderDetail {
   SONumber: string;
@@ -300,6 +341,12 @@ function loadState() {
       sortDirection = state.sortDirection;
       filterCategory = state.filterCategory;
       showAllTooltips = state.showAllTooltips !== undefined ? state.showAllTooltips : false;
+      
+      // Restore stage aging related state
+      if (state.stageAgingSummary) stageAgingSummary = state.stageAgingSummary;
+      if (state.agingHistoryData) agingHistoryData = state.agingHistoryData;
+      showAgingModal = state.showAgingModal || false;
+      if (state.agingModalContent) agingModalContent = state.agingModalContent;
 
       // Restore modalContent
       if (state.modalContent) {
@@ -363,12 +410,70 @@ function loadState() {
   }
 }
 
+function formatDuration(hours: number): string {
+  const days = Math.floor(hours / 24);
+  const remainingHours = Math.floor(hours % 24);
+  
+  if (days > 0) {
+    return `${days}d ${remainingHours}h`;
+  } else {
+    return `${remainingHours}h`;
+  }
+}
+
+function closeAgingModal() {
+  showAgingModal = false;
+  saveState();
+}
+
 function handleInvoiceStatusChange() {
   saveState();
   fetchDashboardData();
 }
 
-// Replace your existing saveState function (around line 284)
+function isOverStageDuration(stage: number, hours: number): boolean {
+  const stageLimits: Record<number, number> = {
+    0: 24, // 24 hours
+    1: 24, // 24 hours
+    2: 240, // 10 days
+    3: 168, // 7 days
+    4: 240, // 10 days
+    5: 48 // 48 hours
+  };
+  
+  return stage in stageLimits && hours > stageLimits[stage];
+}
+
+function getAgingStatusClass(stage: number, hours: number): string {
+  return isOverStageDuration(stage, hours) ? 'text-red-500 font-bold' : 'text-green-500';
+}
+
+  function exportAgingDataToCSV() {
+    if (stageAgingSummary.length === 0) return;
+    
+    // Prepare the CSV headers
+    let csvContent = "Stage,Stage Name,Count,Average Duration (hours),Min Duration (hours),Max Duration (hours)\n";
+    
+    // Add data rows
+    stageAgingSummary.forEach(stage => {
+      csvContent += `${stage.stage},${getStageTitle(stage.stage)},${stage.count},${stage.averageDuration.toFixed(2)},${stage.minDuration.toFixed(2)},${stage.maxDuration.toFixed(2)}\n`;
+    });
+    
+    // Create a Blob with the CSV data
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a link element and trigger download
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().slice(0, 10);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `stage-aging-summary-${timestamp}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
 function saveState() {
   if (!browser) return;
   
@@ -388,7 +493,12 @@ function saveState() {
       invoiceStatus,
       dateRange,
       showAllTooltips,
-      // new the timestamp and data cache
+      // Stage aging data
+      stageAgingSummary,
+      agingHistoryData,
+      showAgingModal,
+      agingModalContent,
+      
       lastFetchTime: Date.now(),
       dashboardData: {
         totalOrders,
@@ -434,7 +544,7 @@ function showSONumbers(item: string, type: 'client' | 'category') {
 
 
 async function fetchDashboardData() {
- isLoadingKPIData = true;
+  isLoadingKPIData = true;
   try {
     const response = await fetch('/api/dashboard-data', {
       method: 'POST',
@@ -462,9 +572,12 @@ async function fetchDashboardData() {
     ordersByMonth = data.ordersByMonth;
     averageOrderValue = data.averageOrderValue;
     conversionRate = data.conversionRate;
-    agingData = data.agingData;
+    agingData = data.currentAging;
     pmNames = data.pmNames;
     invoiceStatuses = data.invoiceStatuses || [];
+    
+    // Store the stage aging summary data
+    stageAgingSummary = data.stageAgingSummary || [];
     
     // Update the chart
     updateChart();
@@ -474,6 +587,45 @@ async function fetchDashboardData() {
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
     // Optional: Display an error message to the user
+  } finally {
+    isLoadingKPIData = false;
+  }
+}
+
+async function showStageAgingDetails(stage: number) {
+  isLoadingKPIData = true;
+  try {
+    const response = await fetch('/api/stage-aging', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        stage, 
+        startDate: dateRange.start, 
+        endDate: dateRange.end,
+        pmName: selectedPM !== 'all' ? selectedPM : undefined
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Find stage summary from our existing data
+    const stageSummary = stageAgingSummary.find(s => s.stage === stage);
+    
+    agingModalContent = {
+      title: `Stage ${stage} (${getStageTitle(stage)}) Aging Details`,
+      data: data.agingData,
+      summary: stageSummary,
+      averageDuration: stageSummary?.averageDuration || 0
+    };
+    
+    showAgingModal = true;
+    saveState();
+  } catch (error) {
+    console.error('Error fetching stage aging details:', error);
   } finally {
     isLoadingKPIData = false;
   }
